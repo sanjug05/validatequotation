@@ -18,7 +18,7 @@
   --accent:#3d6af5;--accent-b:#6d4ff5;--accent-dim:rgba(61,106,245,.12);
   --ok:#1fb86e;--ok-dim:rgba(31,184,110,.10);
   --warn:#e8a020;--warn-dim:rgba(232,160,32,.12);
-  --danger:#e0445a;
+  --danger:#e0445a;--danger-dim:rgba(224,68,90,.12);
   --t1:#e8eaf0;--t2:#8a90b0;--t3:#3e4268;
   --upvc-bg:rgba(61,106,245,.12);--upvc-fg:#7090f8;
   --alum-bg:rgba(232,160,32,.12);--alum-fg:#e8a020;
@@ -31,6 +31,7 @@
   --accent:#2455e0;--accent-b:#6040cc;--accent-dim:rgba(36,85,224,.08);
   --ok:#148f52;--ok-dim:rgba(20,143,82,.08);
   --warn:#b07010;--warn-dim:rgba(176,112,16,.08);
+  --danger-dim:rgba(224,68,90,.08);
   --t1:#0c0e1c;--t2:#484c6e;--t3:#9298c0;
   --upvc-bg:rgba(36,85,224,.08);--upvc-fg:#2455e0;
   --alum-bg:rgba(176,112,16,.10);--alum-fg:#b07010;
@@ -229,6 +230,50 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .spec-group:last-child{margin-bottom:0}
 .sg-title{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--accent-dim)}
 
+/* ── Site & wind data panel ── */
+.site-wrap{max-width:520px;margin:0 auto 20px;padding:0 24px}
+.site-card{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface);overflow:hidden}
+.site-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;cursor:pointer;user-select:none}
+.site-hdr-l{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--t1)}
+.site-hdr-l svg{color:var(--accent);flex-shrink:0}
+.site-badge{font-size:10.5px;color:var(--t2);font-weight:500;background:var(--card);border:1px solid var(--border);padding:2px 9px;border-radius:100px}
+.site-chev{color:var(--t2);transition:transform .2s}
+.site-card.open .site-chev{transform:rotate(180deg)}
+.site-body{display:none;padding:4px 16px 16px}
+.site-card.open .site-body{display:block}
+.site-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.site-field label{display:block;font-size:11px;color:var(--t2);margin-bottom:4px;font-weight:500}
+.site-field select,.site-field input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);color:var(--t1);font-family:inherit;font-size:12.5px;outline:none}
+.site-field select:focus,.site-field input:focus{border-color:var(--accent)}
+.site-hint{font-size:10.5px;color:var(--t2);line-height:1.5;margin-top:2px}
+
+/* ── QA chips & banner ── */
+.chip-qa-pass{background:var(--ok-dim);color:var(--ok)}
+.chip-qa-warn{background:var(--warn-dim);color:var(--warn)}
+.chip-qa-fail{background:var(--danger-dim);color:var(--danger)}
+.qa-banner{max-width:1200px;margin:0 auto;padding:0 24px 16px}
+.qa-banner-inner{border-radius:var(--r);padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid}
+.qa-banner-inner.ok{background:var(--ok-dim);border-color:rgba(31,184,110,.25)}
+.qa-banner-inner.warn{background:var(--danger-dim);border-color:rgba(224,68,90,.25)}
+.qa-banner-txt{flex:1;min-width:200px;font-size:13px;font-weight:600;color:var(--t1)}
+.qa-banner-txt span{font-weight:400;color:var(--t2);display:block;font-size:11.5px;margin-top:2px}
+.qa-tally{display:flex;gap:8px;flex-wrap:wrap}
+.qa-tally-item{font-size:11px;font-weight:600;padding:4px 10px;border-radius:100px;background:var(--card);border:1px solid var(--border);color:var(--t2);white-space:nowrap}
+.qa-tally-item b{color:var(--danger)}
+
+/* ── QA checks (modal) ── */
+.qa-check{border:1px solid var(--border);border-left-width:3px;border-radius:var(--r-sm);padding:10px 13px;margin-bottom:8px;background:var(--card)}
+.qa-check.pass{border-left-color:var(--ok)}
+.qa-check.warn{border-left-color:var(--warn)}
+.qa-check.fail{border-left-color:var(--danger)}
+.qa-check-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:600;color:var(--t1);margin-bottom:4px}
+.qa-check-tag{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;white-space:nowrap}
+.qa-check.pass .qa-check-tag{color:var(--ok)}
+.qa-check.warn .qa-check-tag{color:var(--warn)}
+.qa-check.fail .qa-check-tag{color:var(--danger)}
+.qa-check p{font-size:12px;color:var(--t2);line-height:1.5;margin:0}
+.qa-note{font-size:11px;color:var(--t2);background:var(--bg);border:1px dashed var(--border);border-radius:var(--r-sm);padding:9px 11px;margin-top:8px;line-height:1.5}
+
 </style>
 </head>
 <body>
@@ -250,8 +295,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 <div class="update-bar" id="updateBar"><span>🔄 A new version is available</span><button class="btn-u" onclick="applyUpdate()">Update Now</button><button class="cls" onclick="g('updateBar').classList.remove('show')" aria-label="Dismiss">✕</button></div>
 <section class="hero">
   <div class="hero-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Channel Partner Intelligence</div>
-  <h1 class="hero-title">Decode Any AIS Windows<br><span class="hl">Quotation Instantly</span></h1>
-  <p class="hero-sub">Upload your PI or quotation PDF to get a product-by-product breakdown, visual preview, benefits summary, and voice narration for every window and door.</p>
+  <h1 class="hero-title">Decode &amp; Validate Any AIS Windows<br><span class="hl">Quotation Instantly</span></h1>
+  <p class="hero-sub">Upload your PI or quotation PDF for a product-by-product breakdown — plus automated technical validation that flags material-feasibility issues, missing mullions/couplers, under-specified hardware, and incomplete data before the quote goes out.</p>
 </section>
 
 <div class="upload-wrap">
@@ -262,6 +307,55 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <div class="up-hint">Drag &amp; drop or click to browse · Processed entirely in your browser</div>
   </div>
   <div class="up-acts"><button class="demo-link" onclick="loadDemo()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>Load demo quotation</button></div>
+</div>
+
+<div class="site-wrap">
+  <div class="site-card" id="siteCard">
+    <div class="site-hdr" onclick="toggleSiteCard()">
+      <div class="site-hdr-l"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8 6 5 10.5 5 14a7 7 0 0 0 14 0c0-3.5-3-8-7-12z"/></svg>Site &amp; wind data <span class="site-badge" id="siteBadge">optional</span></div>
+      <svg class="site-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="site-body">
+      <p class="site-hint" style="margin-bottom:10px">Used for design wind pressure and the glass-thickness check. Everything else — material feasibility, mullion/coupler, hardware — validates without this.</p>
+      <div class="site-row">
+        <div class="site-field">
+          <label>City / region</label>
+          <select id="siteCity" onchange="onSiteCityChange();revalidateAll()">
+            <option value="">— select —</option>
+            <option value="47">Delhi NCR (≈47 m/s)</option>
+            <option value="44">Mumbai (≈44 m/s)</option>
+            <option value="50">Chennai (≈50 m/s)</option>
+            <option value="50">Kolkata (≈50 m/s)</option>
+            <option value="33">Bengaluru (≈33 m/s)</option>
+            <option value="44">Hyderabad (≈44 m/s)</option>
+            <option value="39">Pune (≈39 m/s)</option>
+            <option value="39">Ahmedabad (≈39 m/s)</option>
+            <option value="47">Jaipur (≈47 m/s)</option>
+            <option value="47">Chandigarh (≈47 m/s)</option>
+            <option value="custom">Custom — enter Vb</option>
+          </select>
+        </div>
+        <div class="site-field" id="siteVbField" style="display:none">
+          <label>Basic wind speed Vb (m/s)</label>
+          <input type="number" id="siteVb" placeholder="e.g. 47" onchange="revalidateAll()">
+        </div>
+        <div class="site-field">
+          <label>Terrain category</label>
+          <select id="siteTerrain" onchange="revalidateAll()">
+            <option value="1">Cat 1 — open sea/flat</option>
+            <option value="2" selected>Cat 2 — open, scattered obstructions</option>
+            <option value="3">Cat 3 — urban, numerous obstructions</option>
+            <option value="4">Cat 4 — dense city centres</option>
+          </select>
+        </div>
+        <div class="site-field">
+          <label>Height above ground (m)</label>
+          <input type="number" id="siteHeight" placeholder="e.g. 30" onchange="revalidateAll()">
+        </div>
+      </div>
+      <p class="site-hint">Estimates only — confirm exact Vb against the IS 875 (Part 3):2015 wind zone map for the project site.</p>
+    </div>
+  </div>
 </div>
 
 <div class="status-wrap"><div class="status-card" id="statusCard"><div class="spin" id="statusSpin"></div><span id="statusMsg"></span></div></div>
@@ -278,6 +372,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <div class="s-item"><div class="s-val" id="sValue">—</div><div class="s-lbl">Quote Value</div></div>
       <div class="s-div"></div>
       <div class="s-item"><div class="pmix" id="sMix"></div><div class="s-lbl" style="margin-top:6px">Profile Mix</div></div>
+      <div class="s-div"></div>
+      <div class="s-item"><div class="s-val" id="sFlagged" style="color:var(--danger)">0</div><div class="s-lbl">Flagged</div></div>
     </div>
     <div class="sum-acts">
       <button class="btn btn-sm" onclick="doExportJSON()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>JSON</button>
@@ -286,6 +382,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     </div>
   </div>
 </div>
+
+<div class="qa-banner" id="qaBanner" style="display:none"></div>
 
 <div class="filters-bar" id="filtersBar">
   <div class="f-inner">
@@ -311,6 +409,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <option value="">Mesh: All</option>
       <option value="yes">With Mesh</option>
       <option value="no">No Mesh</option>
+    </select>
+    <select class="f-select" id="fQA" onchange="applyFilters()">
+      <option value="">QA: All</option>
+      <option value="flagged">Flagged only</option>
+      <option value="pass">Pass only</option>
     </select>
     <span class="f-count" id="fCount"></span>
   </div>
@@ -367,12 +470,12 @@ if(typeof pdfjsLib!=='undefined')
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ═══ CONSTANTS ══════════════════════════════════════ */
-const APP_VERSION='2.5.0';
-const APP_NAME='AIS Window Quote Decoder';
+const APP_VERSION='3.0.0';
+const APP_NAME='AIS Window Quote Decoder + QA';
 const IMG_MAP={/* 'DESIGN NAME':'https://...' – internal only */};
 
 /* ═══ STATE ══════════════════════════════════════════ */
-const S={items:[],filtered:[],current:null,speaking:false,speakBtn:null,pdfDoc:null,previewMode:'svg',toastActive:new Set()};
+const S={items:[],filtered:[],current:null,speaking:false,speakBtn:null,pdfDoc:null,previewMode:'svg',toastActive:new Set(),siteData:{vb:null,terrain:2,heightM:null}};
 
 /* ═══ DEMO ═══════════════════════════════════════════ */
 const DEMO=[
@@ -396,6 +499,226 @@ function normDim(v){const n=parseFloat(v);return(n>0&&n<30000)?Math.round(n):0;}
 function normMesh(raw){if(!raw)return'No';return/^\s*no\s*$|^\s*none\s*$|^\s*n\/a\s*$/i.test(raw.trim())?'No':'Yes';}
 function normMaterial(s){if(!s)return'';return/alumin/i.test(s)?'Aluminium':/upvc|pvc/i.test(s)?'uPVC':'';}
 function cleanLine(s){return s.replace(/\s+/g,' ').trim();}
+
+/* ═══════════════════════════════════════════════════════
+   TECHNICAL VALIDATION ENGINE — v1.0
+   Every threshold below is an editable default. Values marked
+   "VERIFY" are directional estimates from public sources/industry
+   practice and must be checked against the current code / your
+   suppliers' data before this is used to sign off a real quotation.
+   This engine runs against the ACTUAL parsed quotation fields
+   (profileMaterial, width, height, weight, glass, lockingType,
+   coupler, mullion, etc.) rather than re-estimating them.
+═══════════════════════════════════════════════════════ */
+const QA_CONFIG = {
+  wind: {
+    k1: 1.0, k3: 1.0, k4: 1.0, // VERIFY per IS 875 Pt.3 Table 1 / topography / cyclonic zone
+    terrainAlpha: {1:0.10, 2:0.14, 3:0.22, 4:0.30} // power-law approx of IS875 Table 2 k2(h) — VERIFY for critical projects
+  },
+  material: {
+    maxMemberLength: 3000, // mm — BPF Code of Practice scope cap for a single uPVC frame member
+    upvcSashLimits: { // mm — typical practical operable-sash ceilings — VERIFY per system house
+      casement: {w:1200, h:1500}, sliding: {w:1600, h:2200},
+      tiltturn: {w:1400, h:1600}, fixed: {w:2000, h:2700}
+    },
+    upvcSashWeightLimitKg: 130 // typical mid-range uPVC hardware ceiling (Roto NX-class ≈150kg) — VERIFY against chosen hardware
+  },
+  hardwareTiers: [
+    {maxKg:60,  points:2, name:'Standard multi-point lock (2 points)'},
+    {maxKg:100, points:3, name:'Reinforced multi-point lock (3 points)'},
+    {maxKg:130, points:4, name:'Heavy-duty hardware, load-transfer hinges (3–4 points)'},
+    {maxKg:Infinity, points:null, name:'Exceeds standard uPVC hardware capacity — confirm with supplier or use aluminium'}
+  ]
+};
+
+function qaRound(n,d){const f=Math.pow(10,d);return Math.round(n*f)/f;}
+
+function qaWindPressure(site){
+  if(!site||!site.vb||!site.heightM)return null;
+  const alpha=QA_CONFIG.wind.terrainAlpha[site.terrain]??0.14;
+  const h=Math.max(site.heightM,10);
+  const k2=Math.pow(h/10,alpha);
+  const vz=site.vb*QA_CONFIG.wind.k1*k2*QA_CONFIG.wind.k3*QA_CONFIG.wind.k4;
+  const pz=0.6*vz*vz;
+  return {vz:qaRound(vz,1),pz:qaRound(pz,0),k2:qaRound(k2,3)};
+}
+
+/* Map the decoder's inferred windowType onto a sash-limit category */
+function qaOpeningCategory(windowType){
+  const t=(windowType||'').toLowerCase();
+  if(/tilt/.test(t))return'tiltturn';
+  if(/sliding|slide|fold/.test(t))return'sliding';
+  if(/fixed|arch|bay|curtain|corner|louvre/.test(t))return'fixed';
+  return'casement'; // casement, twin sash, doors default to the tighter operable-sash limit
+}
+
+function qaMaterialFeasibility(item){
+  const w=item.width||0,h=item.height||0;
+  if(!w||!h)return null;
+  const cat=qaOpeningCategory(item.windowType);
+  const maxMember=QA_CONFIG.material.maxMemberLength;
+  const sashLimit=QA_CONFIG.material.upvcSashLimits[cat]||QA_CONFIG.material.upvcSashLimits.fixed;
+  const bothOver=h>maxMember&&w>maxMember;
+  const overLength=Math.max(h,w)>maxMember;
+  const overSashOperable=(cat!=='fixed')&&(h>sashLimit.h||w>sashLimit.w);
+  let verdict,reason;
+  if(bothOver||Math.max(h,w)>maxMember*2){
+    verdict='fail';
+    reason=`Both/larger dimension exceeds ${maxMember}mm by more than double — facade-scale opening. uPVC not practical even with multiple mullions; aluminium/curtain-wall required.`;
+  }else if(overLength){
+    verdict='warn';
+    reason=`${h>maxMember?'Height':'Width'} (${Math.max(w,h)}mm) exceeds the ${maxMember}mm single-member limit for uPVC. Only achievable by dividing with mullions into segments ≤${maxMember}mm — recommend aluminium unless a mullion grid is acceptable.`;
+  }else if(overSashOperable){
+    verdict='warn';
+    reason=`As a single ${cat} sash, ${w}×${h}mm exceeds the typical uPVC sash ceiling of ${sashLimit.w}×${sashLimit.h}mm. Needs a mullion split or heavy-duty hardware confirmation.`;
+  }else{
+    verdict='pass';
+    reason=`${w}×${h}mm is within typical uPVC single-member and sash limits (≤${maxMember}mm member, ≤${sashLimit.w}×${sashLimit.h}mm sash).`;
+  }
+  return {verdict,reason,needsMullion:verdict!=='pass'};
+}
+
+function qaHardwareTier(weightKg){
+  return QA_CONFIG.hardwareTiers.find(t=>weightKg<=t.maxKg);
+}
+
+/* Placeholder glass-thickness band — NOT a digitized ASTM E1300/IS 16231 chart. */
+function qaGlassPlaceholder(areaM2,pressurePa){
+  const loadIndex=areaM2*(pressurePa/1000);
+  let mm;
+  if(loadIndex<3)mm=5;else if(loadIndex<6)mm=6;else if(loadIndex<10)mm=8;
+  else if(loadIndex<16)mm=10;else if(loadIndex<24)mm=12;else mm=15;
+  return {recommendedMm:mm,loadIndex:qaRound(loadIndex,2)};
+}
+function qaExtractGlassMm(glassStr){
+  if(!glassStr)return null;
+  const nums=[...glassStr.matchAll(/(\d+(?:\.\d+)?)\s*mm/gi)].map(m=>parseFloat(m[1])).filter(n=>n>0&&n<60);
+  if(!nums.length)return null;
+  return qaRound(nums.reduce((a,b)=>a+b,0),1);
+}
+
+/* ── Main per-item validator — returns {status, checks:[{cat,status,detail}]} ── */
+function validateItem(it,site){
+  const checks=[];
+
+  // 1. Completeness — always runs, needs no site data
+  const missing=[];
+  if(!it.width||!it.height)missing.push('size (W×H)');
+  if(!it.profileMaterial)missing.push('profile material');
+  if(!it.glass)missing.push('glass specification');
+  const isOperable=qaOpeningCategory(it.windowType)!=='fixed';
+  if(isOperable&&!it.lockingType&&!it.bsLockType)missing.push('locking/handle type');
+  if(!it.rate&&!it.amount)missing.push('rate/amount');
+  if(missing.length){
+    checks.push({cat:'Data completeness',status:'fail',detail:`Missing from the quote line: ${missing.join(', ')}. Cannot fully validate this item until these are captured.`});
+  }else{
+    checks.push({cat:'Data completeness',status:'pass',detail:'All core fields present on this line item.'});
+  }
+
+  // 2. Material feasibility (size-driven, uPVC vs aluminium)
+  const mat=qaMaterialFeasibility(it);
+  if(mat){
+    const proposedIsUpvc=/upvc|pvc/i.test(it.profileMaterial||'');
+    const feasibleUpvc=mat.verdict==='pass';
+    if(proposedIsUpvc&&!feasibleUpvc){
+      checks.push({cat:'Material feasibility',status:'fail',detail:`Quoted as uPVC, but this size ${mat.verdict==='fail'?'structurally requires aluminium':'exceeds standard uPVC limits'}. ${mat.reason}`});
+    }else if(!proposedIsUpvc&&feasibleUpvc){
+      checks.push({cat:'Material feasibility',status:'warn',detail:`Quoted as ${it.profileMaterial||'aluminium'}; uPVC would also meet this size at typically lower cost. Confirm this was deliberate (aesthetics/thermal/sightlines).`});
+    }else{
+      checks.push({cat:'Material feasibility',status:'pass',detail:mat.reason});
+    }
+  }
+
+  // 3. Mullion / coupler presence for oversized spans
+  if(mat&&mat.needsMullion){
+    const hasCoupler=!!(it.coupler||it.mullion);
+    if(!hasCoupler){
+      checks.push({cat:'Mullion / coupler',status:'fail',detail:`This size exceeds single-member limits, but no coupler or mullion is specified on the quote line — check whether one is required.`});
+    }else{
+      checks.push({cat:'Mullion / coupler',status:'pass',detail:`Coupler/mullion specified (${[it.coupler,it.mullion].filter(Boolean).join('; ')}), consistent with this span.`});
+    }
+  }
+
+  // 4. Hardware / locking vs actual weight (uses the PDF's own computed weight, not an estimate)
+  if(it.weight>0){
+    const tier=qaHardwareTier(it.weight);
+    const lockText=(it.lockingType||'')+' '+(it.bsLockType||'');
+    if(!tier.points){
+      checks.push({cat:'Hardware / locking',status:'fail',detail:`Sash weight ${it.weight}kg exceeds standard uPVC hardware capacity (~${QA_CONFIG.material.upvcSashWeightLimitKg}kg). Confirm heavy-duty hardware with your supplier or reconsider aluminium.`});
+    }else if(isOperable&&!it.lockingType&&!it.bsLockType){
+      checks.push({cat:'Hardware / locking',status:'fail',detail:`No locking mechanism specified for an operable sash weighing ${it.weight}kg.`});
+    }else if(it.weight>60&&!/multi|espag|mvd|cremone/i.test(lockText)){
+      checks.push({cat:'Hardware / locking',status:'warn',detail:`Sash weight ${it.weight}kg — recommended: ${tier.name}. Current spec: "${lockText.trim()||'not specified'}" — confirm it's multi-point.`});
+    }else{
+      checks.push({cat:'Hardware / locking',status:'pass',detail:`${it.weight}kg sash — recommended tier "${tier.name}" — consistent with quoted "${lockText.trim()}".`});
+    }
+  }
+
+  // 5. Wind pressure + glass thickness (only with site data)
+  const wind=qaWindPressure(site);
+  if(!wind){
+    checks.push({cat:'Wind load / glass spec',status:'warn',detail:'Site & wind data not provided — design wind pressure and glass-thickness adequacy cannot be checked for this item. Fill in the site panel above to enable this check.'});
+  }else if(it.width&&it.height){
+    const areaM2=(it.width/1000)*(it.height/1000);
+    const glass=qaGlassPlaceholder(areaM2,wind.pz);
+    const quotedMm=qaExtractGlassMm(it.glass);
+    if(quotedMm==null){
+      checks.push({cat:'Wind load / glass spec',status:'warn',detail:`Design wind pressure ${wind.pz}Pa (Vz=${wind.vz}m/s). Indicative minimum build-up: ${glass.recommendedMm}mm — could not parse a thickness from the quoted glass text to compare.`});
+    }else if(quotedMm<glass.recommendedMm){
+      checks.push({cat:'Wind load / glass spec',status:'fail',detail:`Design wind pressure ${wind.pz}Pa. Quoted glass build-up (~${quotedMm}mm) is below the placeholder-recommended ${glass.recommendedMm}mm. This band is illustrative, not a certified chart — re-check against ASTM E1300/IS 16231 or AIS-59 before acting.`});
+    }else{
+      checks.push({cat:'Wind load / glass spec',status:'pass',detail:`Design wind pressure ${wind.pz}Pa. Quoted glass build-up (~${quotedMm}mm) meets the placeholder-recommended ${glass.recommendedMm}mm. (Placeholder logic — validate against a certified chart.)`});
+    }
+  }
+
+  const hasFail=checks.some(c=>c.status==='fail');
+  const hasWarn=checks.some(c=>c.status==='warn');
+  return {status:hasFail?'fail':(hasWarn?'warn':'pass'),checks};
+}
+
+/* ── Site panel UI ── */
+function toggleSiteCard(){g('siteCard').classList.toggle('open');}
+function onSiteCityChange(){
+  const v=g('siteCity').value;
+  g('siteVbField').style.display=v==='custom'?'block':'none';
+}
+function readSiteData(){
+  const citySel=g('siteCity').value;
+  const vb=citySel==='custom'?parseFloat(g('siteVb').value):parseFloat(citySel);
+  S.siteData={
+    vb:isNaN(vb)?null:vb,
+    terrain:parseInt(g('siteTerrain').value)||2,
+    heightM:parseFloat(g('siteHeight').value)||null
+  };
+  g('siteBadge').textContent=S.siteData.vb&&S.siteData.heightM?'active':'optional';
+  return S.siteData;
+}
+function revalidateAll(){
+  readSiteData();
+  S.items.forEach(it=>{it._qa=validateItem(it,S.siteData);});
+  updateSummary(S.items);applyFilters();renderQABanner();
+}
+function renderQABanner(){
+  const banner=g('qaBanner');
+  if(!S.items.length){banner.style.display='none';return;}
+  const flagged=S.items.filter(i=>i._qa&&i._qa.status!=='pass');
+  const failCount=S.items.filter(i=>i._qa&&i._qa.status==='fail').length;
+  const tally={};
+  S.items.forEach(it=>{(it._qa?.checks||[]).forEach(c=>{if(c.status!=='pass'){tally[c.cat]=(tally[c.cat]||0)+1;}});});
+  if(!flagged.length){
+    banner.style.display='block';
+    banner.innerHTML=`<div class="qa-banner-inner ok">
+      <div class="qa-banner-txt">✓ All ${S.items.length} items pass automated validation<span>Material feasibility, mullion/coupler, hardware, and completeness checks all clear.</span></div>
+    </div>`;
+    return;
+  }
+  banner.style.display='block';
+  const tallyHtml=Object.entries(tally).map(([cat,n])=>`<span class="qa-tally-item"><b>${n}</b> ${esc(cat)}</span>`).join('');
+  banner.innerHTML=`<div class="qa-banner-inner warn">
+    <div class="qa-banner-txt">⚠ ${flagged.length} of ${S.items.length} items flagged${failCount?`, ${failCount} need review before quoting`:''}<span>Click "Flagged only" in the filter bar below to jump to them.</span></div>
+    <div class="qa-tally">${tallyHtml}</div>
+  </div>`;
+}
 
 let _sT;
 function setStatus(type,msg){
@@ -1102,11 +1425,14 @@ function applyFilters(){
   const ty=g('fType').value.toLowerCase();
   const pr=g('fProfile').value.toLowerCase();
   const ms=g('fMesh').value.toLowerCase();
+  const qa=g('fQA')?g('fQA').value:'';
   S.filtered=S.items.filter(it=>{
     if(q){const h=[it.designName,it.profileType,it.glass,it.windowType,it.series,it.lockingType,it.handleType,it.profileColor,it.silicon].filter(Boolean).join(' ').toLowerCase();if(!h.includes(q))return false;}
     if(ty&&!(it.windowType||'').toLowerCase().includes(ty))return false;
     if(pr){const pm=(it.profileMaterial||'').toLowerCase();if(pr==='upvc'&&!/upvc|pvc/.test(pm))return false;if(pr==='alum'&&!/alumin/.test(pm))return false;}
     if(ms){const m=(it.mesh||'').toLowerCase();if(ms==='yes'&&m!=='yes')return false;if(ms==='no'&&m==='yes')return false;}
+    if(qa==='flagged'&&(!it._qa||it._qa.status==='pass'))return false;
+    if(qa==='pass'&&(!it._qa||it._qa.status!=='pass'))return false;
     return true;
   });
   renderCards();g('fCount').textContent=`${S.filtered.length} of ${S.items.length} shown`;
@@ -1128,10 +1454,12 @@ function cardHTML(it){
   const gl60=glFull.length>60?glFull.slice(0,60)+'…':glFull;
   const amt=it.amount?'₹'+Number(it.amount).toLocaleString('en-IN'):'—';
   const bens=benefits(it).slice(0,3);
+  const qa=it._qa;
+  const qaChip=qa?(qa.status==='pass'?`<span class="chip chip-qa-pass">✓ QA Pass</span>`:qa.status==='fail'?`<span class="chip chip-qa-fail">⚠ ${qa.checks.filter(c=>c.status!=='pass').length} Flag${qa.checks.filter(c=>c.status!=='pass').length>1?'s':''}</span>`:`<span class="chip chip-qa-warn">${qa.checks.filter(c=>c.status!=='pass').length} Check${qa.checks.filter(c=>c.status!=='pass').length>1?'s':''}</span>`):'';
   return`<div class="item-card ${barCls}" onclick="openModal(${it.slNo})">
 <div class="c-head"><div class="c-num">${it.slNo}</div><div class="c-head-r">
 <div class="c-title">${esc(it.designName||it.designRef||'Window Item')}</div>
-<div class="c-chips"><span class="chip ${pmCls}">${esc(pm)}</span>${it.windowType?`<span class="chip chip-type">${esc(it.windowType)}</span>`:''}${it.profileColor?`<span class="chip chip-type" style="opacity:.75">${esc(it.profileColor)}</span>`:''}${it.mesh==='Yes'?'<span class="chip chip-mesh">Mesh ✓</span>':''}</div></div></div>
+<div class="c-chips"><span class="chip ${pmCls}">${esc(pm)}</span>${it.windowType?`<span class="chip chip-type">${esc(it.windowType)}</span>`:''}${it.profileColor?`<span class="chip chip-type" style="opacity:.75">${esc(it.profileColor)}</span>`:''}${it.mesh==='Yes'?'<span class="chip chip-mesh">Mesh ✓</span>':''}${qaChip}</div></div></div>
 <div class="c-dims"><span class="c-dim-v">${dims} mm</span>${area?`<span class="c-sep">·</span><span>${area}</span>`:''}${wt?`<span class="c-sep">·</span><span>${wt}</span>`:''}</div>
 <div class="c-glass"><span class="c-glass-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg></span><span>${esc(gl60)}</span></div>
 ${bens.length?`<div class="c-benefits">${bens.map(b=>`<span class="btag">${b.ic} ${esc(b.t)}</span>`).join('')}</div>`:''}
@@ -1189,7 +1517,16 @@ function openModal(slNo){
 
     const bens=benefits(it);
 
+    const qa=it._qa;
+    const qaLabel=qa?(qa.status==='pass'?'Pass':qa.status==='fail'?'Review Required':'Checks Flagged'):'Not validated';
+    const qaColor=qa?(qa.status==='pass'?'var(--ok)':qa.status==='fail'?'var(--danger)':'var(--warn)'):'var(--t2)';
+    const qaHtml=qa?`<div class="m-section"><div class="m-sec-title" style="display:flex;align-items:center;justify-content:space-between;border-bottom-color:${qaColor}"><span>Technical Validation</span><span style="color:${qaColor};font-weight:800;letter-spacing:.04em">${esc(qaLabel)}</span></div>
+${qa.checks.map(c=>`<div class="qa-check ${c.status}"><div class="qa-check-top"><span>${esc(c.cat)}</span><span class="qa-check-tag">${esc(c.status)}</span></div><p>${esc(c.detail)}</p></div>`).join('')}
+<div class="qa-note">Decision-support, not final engineering sign-off. Material-feasibility, hardware and completeness checks are standards/size-driven; the glass-thickness figure is a placeholder band pending a certified chart. Route any FAIL to an engineer before confirming the quote.</div>
+</div>`:'';
+
     g('mBody').innerHTML=`
+${qaHtml}
 <div class="m-section"><div class="m-sec-title">Product Specifications</div>
 <div class="detail-grid">${basicFlds.map(([lbl,val,span,cls])=>`<div class="d-item${span?' '+span:''}"><span class="d-lbl">${esc(lbl)}</span><span class="d-val${cls?' '+cls:''}">${esc(String(val))}</span></div>`).join('')}</div></div>
 ${bens.length?`<div class="m-section"><div class="m-sec-title">Benefits &amp; Value Proposition</div><div class="benefits-list">${bens.map(b=>`<div class="b-item"><span class="b-ic">${b.ic}</span><span>${esc(b.t)}</span></div>`).join('')}</div></div>`:''}
@@ -1217,6 +1554,7 @@ function updateSummary(items){
   g('sItems').textContent=items.length;g('sArea').textContent=totArea.toFixed(2);
   g('sWeight').textContent=Math.round(totWt);
   g('sValue').textContent=totVal>0?'₹'+Math.round(totVal).toLocaleString('en-IN'):'—';
+  g('sFlagged').textContent=items.filter(i=>i._qa&&i._qa.status!=='pass').length;
   const mix=g('sMix');mix.innerHTML='';
   if(upvcCnt)mix.innerHTML+=`<span class="chip chip-upvc">${upvcCnt} uPVC</span>`;
   if(alumCnt)mix.innerHTML+=`<span class="chip chip-alum">${alumCnt} Alum</span>`;
@@ -1242,7 +1580,11 @@ async function handleFile(file){
     toast(`${items.length} items loaded`,'ok');
   }catch(e){console.error(e);setStatus('err','Error: '+(e.message||'Unknown error. Try re-uploading.'));}
 }
-function loadItems(items){S.items=items;S.filtered=[...items];updateSummary(items);applyFilters();}
+function loadItems(items){
+  readSiteData();
+  items.forEach(it=>{it._qa=validateItem(it,S.siteData);});
+  S.items=items;S.filtered=[...items];updateSummary(items);applyFilters();renderQABanner();
+}
 function loadDemo(){
   S.pdfDoc=null;
   const items=DEMO.map(d=>{const c=Object.assign({},d);try{finalizeItem(c);}catch(e){}return c;});
@@ -1260,8 +1602,8 @@ function doExportJSON(){
 }
 function doExportCSV(){
   if(!S.filtered.length){toast('No data to export','err');return;}
-  const H=['Sl.No.','Design Name','Type','Series','Profile Material','Profile Type','Profile Color','Silicon','Width mm','Height mm','Area m²','Area sqft','Weight kg','Glass','Mesh','Mesh Type','Handle Type','Flymesh Handle','Handle Color','Handle Height','Locking Type','BS Locking Type','Friction Stay','Cylinder','Hinge','Coupler','Mullion','Track','Sliding Sash','Casement Sash','Outer Frame','Frame','Sash','Fittings Supplier','Seal Type','Qty','Rate INR','Amount INR','Remarks'];
-  const R=S.filtered.map(i=>[i.slNo,i.designName||'',i.windowType||'',i.series||'',i.profileMaterial||'',i.profileType||'',i.profileColor||'',i.silicon||'',i.width||'',i.height||'',i.area||'',i.areaSqft||'',i.weight||'',i.glass||'',i.mesh||'',i.meshType||'',i.handleType||'',i.flymeshHandle||'',i.handleColor||'',i.handleHeight||'',i.lockingType||'',i.bsLockType||'',i.frictionStay||'',i.cylinder||'',i.hinge||'',i.coupler||'',i.mullion||'',i.track||'',i.slidingSash||'',i.casementSash||'',i.outerFrame||'',i.frame||'',i.sash||'',i.fittingsSupplier||'',i.sealType||'',i.qty||'',i.rate||'',i.amount||'',i.remarks||'']);
+  const H=['Sl.No.','Design Name','Type','Series','Profile Material','Profile Type','Profile Color','Silicon','Width mm','Height mm','Area m²','Area sqft','Weight kg','Glass','Mesh','Mesh Type','Handle Type','Flymesh Handle','Handle Color','Handle Height','Locking Type','BS Locking Type','Friction Stay','Cylinder','Hinge','Coupler','Mullion','Track','Sliding Sash','Casement Sash','Outer Frame','Frame','Sash','Fittings Supplier','Seal Type','Qty','Rate INR','Amount INR','Remarks','QA Status','QA Flags'];
+  const R=S.filtered.map(i=>[i.slNo,i.designName||'',i.windowType||'',i.series||'',i.profileMaterial||'',i.profileType||'',i.profileColor||'',i.silicon||'',i.width||'',i.height||'',i.area||'',i.areaSqft||'',i.weight||'',i.glass||'',i.mesh||'',i.meshType||'',i.handleType||'',i.flymeshHandle||'',i.handleColor||'',i.handleHeight||'',i.lockingType||'',i.bsLockType||'',i.frictionStay||'',i.cylinder||'',i.hinge||'',i.coupler||'',i.mullion||'',i.track||'',i.slidingSash||'',i.casementSash||'',i.outerFrame||'',i.frame||'',i.sash||'',i.fittingsSupplier||'',i.sealType||'',i.qty||'',i.rate||'',i.amount||'',i.remarks||'',i._qa?i._qa.status:'',i._qa?i._qa.checks.filter(c=>c.status!=='pass').map(c=>c.cat+': '+c.detail).join(' | '):'']);
   const csv=[H,...R].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   download(csv,'ais-quotation.csv','text/csv');
 }
