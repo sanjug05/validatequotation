@@ -2,8 +2,8 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIS Window Quote Decoder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<title>AIS Window Quote Decoder + QA</title>
 <link rel="manifest" id="manifestLink">
 <meta name="theme-color" content="#3d6af5">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="AIS Decoder">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#08090e;--surface:#0e1018;--card:#131420;--card-h:#191a28;
@@ -45,7 +46,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 ::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:3px}
 
 /* header */
-.app-hdr{position:sticky;top:0;z-index:200;height:54px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:rgba(8,9,16,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--border);transition:background .25s}
+.app-hdr{position:sticky;top:0;z-index:200;height:calc(54px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 24px 0;display:flex;align-items:center;justify-content:space-between;gap:16px;background:rgba(8,9,16,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--border);transition:background .25s}
 [data-theme=light] .app-hdr{background:rgba(255,255,255,.88)}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
 .brand-mark{width:32px;height:32px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,var(--accent),var(--accent-b));display:flex;align-items:center;justify-content:center}
@@ -215,16 +216,109 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .toast.ok{border-color:rgba(31,184,110,.3);color:var(--ok)}
 .toast.err{border-color:rgba(224,68,90,.3);color:var(--danger)}
 
-@media(max-width:768px){.hero{padding:36px 18px 30px}.cards-section{padding:16px 14px}.sum-stats{gap:14px}.s-val{font-size:17px}.s-div{height:28px}}
-@media(max-width:480px){.app-hdr{padding:0 14px}.f-search,.f-select{min-width:100%;width:100%}.cards-grid{grid-template-columns:1fr}.brand-name{display:none}.sum-strip{padding:14px 16px}}
+@media(max-width:768px){.hero{padding:36px 18px 30px}.cards-section{padding:16px 14px}.sum-stats{gap:14px}.s-val{font-size:17px}.s-div{height:28px}.site-wrap,.qa-banner{padding-left:16px;padding-right:16px}}
+@media(max-width:480px){
+  .app-hdr{padding:env(safe-area-inset-top,0px) 14px 0}
+  .f-search,.f-select{min-width:100%;width:100%}
+  .cards-grid{grid-template-columns:1fr}
+  .brand-name{display:none}
+  .sum-strip{padding:14px 16px}
+  .sum-stats{flex-wrap:wrap;row-gap:10px}
+  .site-wrap,.qa-banner{padding-left:12px;padding-right:12px}
+  .site-row{grid-template-columns:1fr}
+  .qa-banner-inner{flex-direction:column;align-items:flex-start}
+  .qa-tally{width:100%}
+  .qa-tally-item{flex:1 1 auto;text-align:center}
+  .hero-title{font-size:22px}
+  .site-hdr-l{font-size:12.5px}
+  .modal-body{padding:16px}
+  .kb-tabs{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .kb-row{grid-template-columns:1fr !important}
+}
+@supports(padding:max(0px)){
+  .install-banner,.update-bar{padding-bottom:max(10px,env(safe-area-inset-bottom))}
+}
 
 /* ── PWA ── */
-.update-bar{position:fixed;top:54px;left:0;right:0;z-index:300;background:var(--accent);color:#fff;padding:10px 20px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:500;box-shadow:0 2px 12px rgba(61,106,245,.4)}
+.update-bar{position:fixed;top:calc(54px + env(safe-area-inset-top,0px));left:0;right:0;z-index:300;background:var(--accent);color:#fff;padding:10px 20px;display:none;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:500;box-shadow:0 2px 12px rgba(61,106,245,.4)}
 .update-bar.show{display:flex}
 .update-bar .btn-u{padding:5px 14px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
 .update-bar .btn-u:hover{background:rgba(255,255,255,.28)}
 .update-bar .cls{background:none;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:16px;padding:0 4px;line-height:1}
 #installBtn{display:none}
+
+/* ── Proactive install banner ── */
+.install-banner{position:fixed;left:0;right:0;bottom:0;z-index:290;background:var(--surface);border-top:1px solid var(--border);padding:12px 18px;display:none;gap:12px;align-items:center;box-shadow:0 -4px 20px rgba(0,0,0,.25)}
+.install-banner.show{display:flex}
+.install-banner .ib-icon{width:38px;height:38px;border-radius:9px;background:var(--accent-dim);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0}
+.install-banner .ib-txt{flex:1;min-width:0;font-size:12.5px;color:var(--t1);line-height:1.4}
+.install-banner .ib-txt b{display:block;font-size:13.5px;margin-bottom:1px}
+.install-banner .ib-acts{display:flex;gap:8px;flex-shrink:0}
+.install-banner button{font-family:inherit;cursor:pointer;border-radius:7px;font-size:12.5px;font-weight:600;padding:8px 14px;white-space:nowrap}
+.install-banner .ib-install{background:var(--accent);color:#fff;border:none}
+.install-banner .ib-dismiss{background:none;border:1px solid var(--border);color:var(--t2)}
+@media(max-width:480px){
+  .install-banner{padding:10px 12px}
+  .install-banner .ib-txt{font-size:11.5px}
+  .install-banner .ib-txt b{font-size:12.5px}
+  .install-banner .ib-acts button{padding:7px 10px;font-size:11.5px}
+}
+
+/* ── Settings / knowledge-base modal ── */
+#settingsBtn{display:inline-flex}
+.kb-modal-bg{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center}
+.kb-modal-bg.show{display:flex}
+@media(min-width:760px){.kb-modal-bg{align-items:center}}
+.kb-modal{background:var(--surface);width:100%;max-width:880px;max-height:92vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden}
+@media(min-width:760px){.kb-modal{border-radius:14px;max-height:86vh}}
+.kb-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.kb-hdr h2{font-size:16px;margin:0;color:var(--t1)}
+.kb-hdr button{background:none;border:none;color:var(--t2);cursor:pointer;font-size:20px;padding:4px 8px;line-height:1}
+.kb-tabs{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.kb-tab{padding:9px 14px;font-size:12.5px;font-weight:600;color:var(--t2);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit}
+.kb-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.kb-body{flex:1;overflow-y:auto;padding:18px 20px;-webkit-overflow-scrolling:touch}
+.kb-pane{display:none}
+.kb-pane.active{display:block}
+.kb-hint{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:14px;background:var(--card);border:1px dashed var(--border);border-radius:8px;padding:10px 12px}
+.kb-series-select{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.kb-series-select select{flex:1;min-width:180px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--t1);font-family:inherit;font-size:13px}
+.kb-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:9px}
+.kb-row{display:grid;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);align-items:center;font-size:12px}
+.kb-row:last-child{border-bottom:none}
+.kb-row input,.kb-row select{width:100%;padding:6px 7px;border:1px solid var(--border);border-radius:5px;background:var(--bg);color:var(--t1);font-family:inherit;font-size:12px}
+.kb-row .kb-del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:15px;padding:4px}
+.kb-add-row{margin-top:10px;padding:9px 14px;background:var(--accent-dim);color:var(--accent);border:1px dashed var(--accent);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+.kb-savebar{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.kb-savebar button{font-family:inherit;cursor:pointer;border-radius:8px;font-size:13px;font-weight:600;padding:10px 16px}
+.kb-save{background:var(--accent);color:#fff;border:none;flex:1}
+.kb-reset{background:none;border:1px solid var(--danger);color:var(--danger)}
+.kb-export,.kb-import-btn{background:none;border:1px solid var(--border);color:var(--t2)}
+.kb-dropzone{border:2px dashed var(--border);border-radius:10px;padding:26px 16px;text-align:center;cursor:pointer;color:var(--t2);font-size:13px;margin-bottom:14px}
+.kb-dropzone:hover{border-color:var(--accent);color:var(--accent)}
+.kb-map-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border);align-items:center;font-size:12.5px}
+.kb-map-row label{color:var(--t2)}
+.kb-map-row select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--t1);font-family:inherit;font-size:12.5px}
+.kb-preview-table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px}
+.kb-preview-table th,.kb-preview-table td{border:1px solid var(--border);padding:5px 7px;text-align:left;white-space:nowrap}
+.kb-preview-table th{background:var(--card);position:sticky;top:0}
+.kb-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:100px;background:var(--accent-dim);color:var(--accent);margin-left:8px}
+
+/* ── Settings login gate ── */
+.kb-login-bg{position:fixed;inset:0;z-index:520;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:20px}
+.kb-login-bg.show{display:flex}
+.kb-login-box{background:var(--surface);border-radius:14px;width:100%;max-width:340px;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.kb-login-box .kli{width:38px;height:38px;border-radius:10px;background:var(--accent-dim);color:var(--accent);display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.kb-login-box h3{margin:0 0 4px;font-size:15px;color:var(--t1)}
+.kb-login-box p{margin:0 0 16px;font-size:12px;color:var(--t2);line-height:1.4}
+.kb-login-box input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--t1);font-family:inherit;font-size:13.5px;margin-bottom:10px}
+.kb-login-box input:focus{outline:none;border-color:var(--accent)}
+.kb-login-err{font-size:11.5px;color:var(--danger);margin:-4px 0 10px;min-height:14px}
+.kb-login-acts{display:flex;gap:8px}
+.kb-login-acts button{flex:1;font-family:inherit;cursor:pointer;border-radius:8px;font-size:13px;font-weight:600;padding:10px;border:none}
+.kb-login-submit{background:var(--accent);color:#fff}
+.kb-login-cancel{background:none;border:1px solid var(--border)!important;color:var(--t2)}
+.kb-lock-link{background:none;border:none;color:var(--t2);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0}
 /* ── Spec groups ── */
 .spec-group{margin-bottom:20px}
 .spec-group:last-child{margin-bottom:0}
@@ -286,6 +380,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   </a>
   <div class="hdr-r">
     <button class="btn btn-ghost btn-icon" id="installBtn" onclick="installApp()" title="Install App"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+    <button class="btn btn-ghost btn-icon" id="settingsBtn" onclick="openKB()" title="Knowledge base settings"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     <button class="btn btn-ghost btn-icon" onclick="toggleTheme()" title="Toggle theme">
       <svg id="themeIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
@@ -293,6 +388,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 </header>
 
 <div class="update-bar" id="updateBar"><span>🔄 A new version is available</span><button class="btn-u" onclick="applyUpdate()">Update Now</button><button class="cls" onclick="g('updateBar').classList.remove('show')" aria-label="Dismiss">✕</button></div>
+
+<div class="install-banner" id="installBanner">
+  <div class="ib-icon"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+  <div class="ib-txt" id="installBannerTxt"><b>Install AIS Quote Decoder</b>Add it to your home screen for one-tap access on phone, tablet, or iPad.</div>
+  <div class="ib-acts">
+    <button class="ib-dismiss" onclick="dismissInstallBanner()">Not now</button>
+    <button class="ib-install" id="installBannerBtn" onclick="installApp()">Install</button>
+  </div>
+</div>
 <section class="hero">
   <div class="hero-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Channel Partner Intelligence</div>
   <h1 class="hero-title">Decode &amp; Validate Any AIS Windows<br><span class="hl">Quotation Instantly</span></h1>
@@ -322,16 +426,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
           <label>City / region</label>
           <select id="siteCity" onchange="onSiteCityChange();revalidateAll()">
             <option value="">— select —</option>
-            <option value="47">Delhi NCR (≈47 m/s)</option>
-            <option value="44">Mumbai (≈44 m/s)</option>
-            <option value="50">Chennai (≈50 m/s)</option>
-            <option value="50">Kolkata (≈50 m/s)</option>
-            <option value="33">Bengaluru (≈33 m/s)</option>
-            <option value="44">Hyderabad (≈44 m/s)</option>
-            <option value="39">Pune (≈39 m/s)</option>
-            <option value="39">Ahmedabad (≈39 m/s)</option>
-            <option value="47">Jaipur (≈47 m/s)</option>
-            <option value="47">Chandigarh (≈47 m/s)</option>
             <option value="custom">Custom — enter Vb</option>
           </select>
         </div>
@@ -464,18 +558,143 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 </div>
 <div class="toast-wrap" id="toastWrap"></div>
 
+<div class="kb-login-bg" id="kbLoginBg">
+  <div class="kb-login-box">
+    <div class="kli"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+    <h3>Settings are locked</h3>
+    <p>Sign in to view or edit the knowledge base.</p>
+    <input type="email" id="kbLoginEmail" placeholder="Email" autocomplete="username">
+    <input type="password" id="kbLoginPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')kbTryLogin()">
+    <div class="kb-login-err" id="kbLoginErr"></div>
+    <div class="kb-login-acts">
+      <button class="kb-login-cancel" onclick="g('kbLoginBg').classList.remove('show')">Cancel</button>
+      <button class="kb-login-submit" onclick="kbTryLogin()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div class="kb-modal-bg" id="kbModalBg" onclick="if(event.target===this)closeKB()">
+  <div class="kb-modal">
+    <div class="kb-hdr">
+      <h2>Knowledge base settings</h2>
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="kb-lock-link" onclick="kbLock()">🔒 Lock</button>
+        <button onclick="closeKB()" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="kb-tabs" id="kbTabs">
+      <button class="kb-tab active" data-tab="wind" onclick="switchKBTab('wind')">Wind Cities</button>
+      <button class="kb-tab" data-tab="material" onclick="switchKBTab('material')">Material Rules</button>
+      <button class="kb-tab" data-tab="upvc" onclick="switchKBTab('upvc')">uPVC Sizes</button>
+      <button class="kb-tab" data-tab="alum" onclick="switchKBTab('alum')">Aluminium Sizes</button>
+      <button class="kb-tab" data-tab="couplers" onclick="switchKBTab('couplers')">Couplers</button>
+      <button class="kb-tab" data-tab="hardware" onclick="switchKBTab('hardware')">Hardware</button>
+      <button class="kb-tab" data-tab="import" onclick="switchKBTab('import')">Import Excel</button>
+      <button class="kb-tab" data-tab="backup" onclick="switchKBTab('backup')">Backup</button>
+    </div>
+    <div class="kb-body">
+
+      <div class="kb-pane active" data-pane="wind">
+        <div class="kb-hint">Basic wind speed (Vb) per city, used for the design wind pressure calculation. Estimates — verify against IS 875 (Part 3):2015.</div>
+        <div id="kbWindTable"></div>
+        <button class="kb-add-row" onclick="kbAddRow('windCities')">+ Add city</button>
+      </div>
+
+      <div class="kb-pane" data-pane="material">
+        <div class="kb-hint">Core assumptions used across every check. Changing these affects every quotation validated afterwards.</div>
+        <div id="kbMaterialForm"></div>
+      </div>
+
+      <div class="kb-pane" data-pane="upvc">
+        <div class="kb-hint">Size/weight limits per uPVC series and design type. "Design" text must match a name the app recognises (e.g. "Sliding Door", "Casement Window (Side Hung)") to be matched automatically — ask if you want a new design type wired in. Ranges are entered as <code>min-max</code>, e.g. <code>450-1200</code>.</div>
+        <div class="kb-series-select">
+          <select id="kbUpvcSeriesSelect" onchange="kbRenderUpvcSeries()"></select>
+          <button class="kb-add-row" style="margin-top:0" onclick="kbAddUpvcSeries()">+ New series</button>
+        </div>
+        <div id="kbUpvcTable"></div>
+        <button class="kb-add-row" onclick="kbAddRow('upvcSeries')">+ Add design row</button>
+      </div>
+
+      <div class="kb-pane" data-pane="alum">
+        <div class="kb-hint">Aluminium size/weight limits by system. Sliding has three reinforcement tiers (base/reinforced/double-reinforced); Casement and Ventilation use a single width/height range. The "Key" field links a row to a window type internally — avoid changing it on existing rows.</div>
+        <div class="kb-series-select">
+          <select id="kbAlumCatSelect" onchange="kbRenderAlum()">
+            <option value="alumSliding">Sliding</option>
+            <option value="alumCasement">Casement</option>
+            <option value="alumVentilation">Ventilation / Louvre</option>
+          </select>
+        </div>
+        <div id="kbAlumTable"></div>
+        <button class="kb-add-row" onclick="kbAddRow(g('kbAlumCatSelect').value)">+ Add row</button>
+      </div>
+
+      <div class="kb-pane" data-pane="couplers">
+        <div class="kb-hint">uPVC and aluminium coupler/mullion reference — dimensions (Side A/B, mm), angle, and length limit (uPVC only; leave blank for aluminium if not specified).</div>
+        <div style="font-weight:600;font-size:12.5px;margin-bottom:6px;color:var(--t1)">uPVC couplers</div>
+        <div id="kbCouplersUpvcTable"></div>
+        <button class="kb-add-row" onclick="kbAddRow('couplersUpvc')">+ Add uPVC coupler</button>
+        <div style="font-weight:600;font-size:12.5px;margin:18px 0 6px;color:var(--t1)">Aluminium couplers</div>
+        <div id="kbCouplersAlumTable"></div>
+        <button class="kb-add-row" onclick="kbAddRow('couplersAlum')">+ Add aluminium coupler</button>
+      </div>
+
+      <div class="kb-pane" data-pane="hardware">
+        <div class="kb-hint">Sash-weight tiers used to recommend a locking/hardware class. "Max kg" is the upper bound of each tier.</div>
+        <div id="kbHardwareTable"></div>
+        <button class="kb-add-row" onclick="kbAddRow('hardwareTiers')">+ Add tier</button>
+      </div>
+
+      <div class="kb-pane" data-pane="import">
+        <div class="kb-hint">Upload an .xlsx/.csv of size limits or couplers. You'll map columns to fields and preview before anything is saved — nothing is guessed silently.</div>
+        <div class="kb-dropzone" id="kbDropzone" onclick="g('kbFileInput').click()">
+          <input type="file" id="kbFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="kbHandleFile(this.files[0])">
+          📄 Click to choose an Excel/CSV file, or drag it here
+        </div>
+        <div id="kbImportWizard"></div>
+      </div>
+
+      <div class="kb-pane" data-pane="backup">
+        <div class="kb-hint">All edits are stored in this browser only (not synced between devices or users). Export a backup to move settings to another device, or reset everything back to the app's built-in defaults.</div>
+        <input type="file" id="kbBackupInput" accept=".json" style="display:none" onchange="kbImportBackup(this.files[0])">
+      </div>
+
+    </div>
+    <div class="kb-savebar">
+      <button class="kb-save" onclick="kbSaveActivePane()">Save changes</button>
+      <button class="kb-export" onclick="kbExportBackup()">Export backup</button>
+      <button class="kb-import-btn" onclick="g('kbBackupInput').click()">Import backup</button>
+      <button class="kb-reset" onclick="kbResetAll()">Reset to defaults</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 if(typeof pdfjsLib!=='undefined')
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ═══ CONSTANTS ══════════════════════════════════════ */
-const APP_VERSION='3.0.0';
+const APP_VERSION='4.0.0';
 const APP_NAME='AIS Window Quote Decoder + QA';
 const IMG_MAP={/* 'DESIGN NAME':'https://...' – internal only */};
 
 /* ═══ STATE ══════════════════════════════════════════ */
-const S={items:[],filtered:[],current:null,speaking:false,speakBtn:null,pdfDoc:null,previewMode:'svg',toastActive:new Set(),siteData:{vb:null,terrain:2,heightM:null}};
+const S={items:[],filtered:[],current:null,speaking:false,speakBtn:null,pdfDoc:null,previewMode:'svg',toastActive:new Set(),siteData:{vb:null,terrain:2,heightM:null},_kbWorking:{},_kbImport:null};
+
+/* Editable via Settings → Wind Cities. Vb estimates — verify against IS 875 (Part 3):2015. */
+const WIND_CITIES=[
+  {name:'Delhi NCR', vb:47}, {name:'Mumbai', vb:44}, {name:'Chennai', vb:50},
+  {name:'Kolkata', vb:50}, {name:'Bengaluru', vb:33}, {name:'Hyderabad', vb:44},
+  {name:'Pune', vb:39}, {name:'Ahmedabad', vb:39}, {name:'Jaipur', vb:47}, {name:'Chandigarh', vb:47},
+];
+function renderCityOptions(){
+  const sel=g('siteCity'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— select —</option>'+
+    WIND_CITIES.map(c=>`<option value="${c.vb}">${esc(c.name)} (≈${c.vb} m/s)</option>`).join('')+
+    '<option value="custom">Custom — enter Vb</option>';
+  if(cur) sel.value=cur;
+}
 
 /* ═══ DEMO ═══════════════════════════════════════════ */
 const DEMO=[
@@ -521,7 +740,8 @@ const QA_CONFIG = {
       casement: {w:1200, h:1500}, sliding: {w:1600, h:2200},
       tiltturn: {w:1400, h:1600}, fixed: {w:2000, h:2700}
     },
-    upvcSashWeightLimitKg: 130 // typical mid-range uPVC hardware ceiling (Roto NX-class ≈150kg) — VERIFY against chosen hardware
+    upvcSashWeightLimitKg: 130, // typical mid-range uPVC hardware ceiling (Roto NX-class ≈150kg) — VERIFY against chosen hardware
+    topFixAllowanceMm: 375 // assumed height of a "with top fix" toplight (user-confirmed range 300–450mm; midpoint used absent an exact figure per line — adjust here if AIS standardises on a specific value
   },
   hardwareTiers: [
     {maxKg:60,  points:2, name:'Standard multi-point lock (2 points)'},
@@ -576,55 +796,61 @@ function fitsRange(val, rangeStr){
   return val>=r.min && val<=r.max;
 }
 
+/* Source: AIS "PRODUCT SPEC. LIMITATION MATRIX" (Doc No. AISWIN/PSLM/URS/01 & UPS/01,
+   Rev 00, 01.03.2022) — supplied directly as a clean spreadsheet, superseding the earlier
+   scanned-PDF transcription of the same three series wherever the numbers differ.
+   "Fixed Louvers" isn't listed in this matrix for any series — kept from the prior
+   transcription unchanged (not contradicted, just not covered by this sheet; verify). */
 const UPVC_SERIES = {
-  'AIS ECO Project Series':[
-    {d:'Fixed Window', w:'400-2000', h:'400-2000', areaMax:4, wt:'0-80', infill:'5-22', depth:'42mm', rem:'Infill capacity limited 5–12mm and 18–22mm'},
+  'AIS ECO PRIME Project Series':[
+    {d:'Fixed Window', w:'300-2000', h:'300-2000', areaMax:4, wt:'0-80', infill:'5-22', rem:'Infill capacity limited 5–12mm and 18–22mm'},
     {d:'Fixed Louvers', w:'400-600', h:'400-1500', depth:'42mm'},
-    {d:'Casement Window (Side Hung)', w:'450-650', h:'450-1500', areaMax:1.7, wt:'0-40', infill:'5-22', depth:'42mm', rem:'Infill capacity limited 5–12mm & 18–22mm; butt hinges required above 22kg sash weight'},
-    {d:'Casement Window (Top Hung)', w:'450-900', h:'450-900', areaMax:1.6, wt:'0-40', infill:'5-22', depth:'42mm', rem:'Infill capacity limited 5–12mm & 18–22mm'},
-    {d:'Sliding Window', w:'450-1000', h:'500-1500', areaMax:1.9, wt:'0-60', infill:'5-12', depth:'52mm'},
-    {d:'Sliding Fixed Shutter (Window)', w:'450-1500', h:'500-1500', areaMax:4, wt:'0-60', infill:'5-12', depth:'52mm'},
-    {d:'Sliding Door', w:'500-1000', h:'1600-2100', areaMax:3.6, wt:'0-90', infill:'5-12', depth:'52mm', rem:'Hurricane bar required above height 1800mm'},
-    {d:'Sliding Fixed Shutter (Door)', w:'500-1350', h:'1600-2100', wt:'0-90', infill:'5-12', depth:'52mm', rem:'Hurricane bar required above height 1800mm'},
+    {d:'Casement Window (Side Hung)', w:'400-650', h:'450-1500', areaMax:1.7, wt:'0-40', infill:'5-22', rem:'Infill capacity limited 5–12mm & 18–22mm; butt hinges required above 22kg sash weight'},
+    {d:'Casement Window (Top Hung)', w:'400-900', h:'400-900', areaMax:1.6, wt:'0-40', infill:'5-22', rem:'Infill capacity limited 5–12mm & 18–22mm'},
+    {d:'Sliding Window', w:'450-1000', h:'450-1600', areaMax:1.9, wt:'0-60', infill:'5-12'},
+    {d:'Sliding Fixed Shutter (Window)', w:'450-1500', h:'450-1600', areaMax:4, wt:'0-60', infill:'5-12'},
+    {d:'Sliding Door', w:'500-1000', h:'500-2100', areaMax:3.6, wt:'0-90', infill:'5-12'},
+    {d:'Sliding Fixed Shutter (Door)', w:'500-1500', h:'500-2100', areaMax:4, wt:'0-90', infill:'5-12'},
   ],
-  'AIS ECO Retail (Inventa)':[
-    {d:'Fixed Window', w:'400-3000', h:'400-3000', areaMax:7, wt:'0-170', infill:'5-38', depth:'62mm', rem:'One side must be below 2400mm due to glass feasibility'},
+  'AIS ECO Retail':[
+    {d:'Fixed Window', w:'400-3000', h:'400-3000', areaMax:7, wt:'0-170', infill:'5-38', depth:'62mm', rem:'One side is below 2800mm due to glass feasibility (add jumbo glass changes above both sides 2400mm)'},
     {d:'Fixed Louvers', w:'400-650', h:'400-2000', depth:'62mm'},
-    {d:'Casement Window (Side Hung)', w:'450-850', h:'450-1800', areaMax:1.7, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Only friction stay & EOD opening-stay provision'},
-    {d:'Casement Window (Top Hung)', w:'450-1000', h:'450-1200', areaMax:1.6, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Only friction stay & EOD opening-stay provision'},
-    {d:'Casement Door', w:'550-1100', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
-    {d:'French Door', w:'1100-2200', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'Casement Window (Side Hung)', w:'450-850', h:'450-1850', areaMax:1.7, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Easy-clean friction stay & EOD opening stay (friction stay provision only)'},
+    {d:'Casement Window (Top Hung)', w:'450-1100', h:'450-1200', areaMax:1.6, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Easy-clean friction stay & EOD opening stay (friction stay provision only)'},
+    {d:'Casement Door', w:'550-1100', h:'2000-2440', areaMax:2.7, wt:'0-80', infill:'5-38', depth:'62mm', rem:'Midrail required in casement door for width >1050mm or height >2350mm'},
+    {d:'French Door', w:'1100-2200', h:'2000-2440', areaMax:2.7, wt:'0-80', infill:'5-38', depth:'62mm', rem:'Midrail required in casement door for width >2000mm or height >2350mm'},
     {d:'Sliding Window', w:'450-1200', h:'500-1850', areaMax:1.9, wt:'0-60', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)'},
-    {d:'Sliding Fixed Shutter (Window)', w:'450-1800', h:'500-1850', areaMax:6, wt:'0-60', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)'},
-    {d:'Sliding Door', w:'500-1450', h:'2000-2500', areaMax:3.6, wt:'0-90', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
-    {d:'Sliding Fixed Shutter (Door)', w:'500-2000', h:'2000-2500', wt:'0-90', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
-    {d:'Sliding Window (2.5 Track)', w:'450-1050', h:'500-1700', areaMax:2.2, wt:'0-60', infill:'5-24', depth:'93mm'},
+    {d:'Sliding Fixed Shutter (Window)', w:'450-2000', h:'500-1850', areaMax:6, wt:'0-60', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)'},
+    {d:'Sliding Door', w:'500-1450', h:'2000-2550', areaMax:3.6, wt:'0-120', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1200mm/panel; above 3rd floor, HB required above height 2100mm (above 2500mm height use 2.5mm reinforcement, max width 1200mm)'},
+    {d:'Sliding Fixed Shutter (Door)', w:'500-2000', h:'2000-2550', areaMax:6, wt:'0-120', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1200mm/panel; above 3rd floor, HB required above height 2100mm (above 2500mm height use 2.5mm reinforcement, max width 1200mm)'},
+    {d:'Sliding Window (2.5 Track)', w:'450-1050', h:'500-1650', areaMax:2.2, wt:'0-60', infill:'5-24', depth:'93mm'},
     {d:'Sliding Window (Monorail)', w:'450-1200', h:'500-1800', areaMax:2.3, wt:'0-60', infill:'5-24', depth:'77mm'},
-    {d:'Sliding Door (Monorail)', w:'500-1250', h:'2000-2500', areaMax:3.6, wt:'0-90', infill:'5-24', depth:'77mm', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
-    {d:'Slide & Fold Door', w:'650-850', h:'2000-2400', areaMax:2.16, wt:'0-80', infill:'5-38', depth:'62mm'},
-    {d:'Tilt & Turn Window', w:'500-800', h:'600-1800', areaMax:1.7, wt:'0-45', infill:'5-38', depth:'62mm'},
-    {d:'Arc Windows', w:'900-2500', h:'500-1250', areaMax:3.5, wt:'0-170', infill:'5-38', depth:'62mm', rem:'Min width 900mm & height 500mm; max width 2500mm & height 1250mm'},
-    {d:'Glass To Glass Joint', w:'400-1400', h:'500-2440', areaMax:3, wt:'0-170', infill:'10-38', depth:'62mm', rem:'Consult technical team for larger glass-to-glass joints; max 2440h×1400w per panel; above that use laminated 8+2.28pvb+8mm'},
+    {d:'Sliding Door (Monorail)', w:'500-1250', h:'2000-2550', areaMax:3.6, wt:'0-120', infill:'5-24', depth:'77mm', rem:'Hurricane bar required above height 2400mm or width >1200mm/panel; above 3rd floor, HB required above height 2100mm (above 2500mm height use 2.5mm reinforcement, max width 1200mm)'},
+    {d:'Slide & Fold Door', w:'650-900', h:'2000-2440', areaMax:2.16, wt:'0-80', infill:'5-38', depth:'62mm', rem:'Per panel maximum 900mm; maximum total width 5000mm'},
+    {d:'Tilt & Turn Window', w:'500-850', h:'600-1800', areaMax:1.7, wt:'0-45', infill:'5-38', depth:'62mm'},
+    {d:'Arc Windows', w:'900-2650', h:'500-1250', areaMax:3.5, wt:'0-170', infill:'5-38', depth:'62mm', rem:'Minimum width 900mm & height 500mm; maximum width 2400mm & height 1000mm'},
+    {d:'Glass To Glass Joint', w:'400-1400', h:'500-2700', areaMax:3, wt:'0-170', infill:'10-38', depth:'62mm', rem:'Consult technical team for larger glass-to-glass joints; max 2440h×1400w per panel (laminated 8+2.28+8mm above height 2440mm)'},
+    {d:'Sliding Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-300', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)', rem:'"Lift and Slide Door" variant'},
   ],
-  'AIS ECO Retail Prime':[
-    {d:'Fixed Window', w:'400-3000', h:'400-3000', areaMax:7, wt:'0-170', infill:'5-38', depth:'62mm', rem:'One side must be below 2400mm due to glass feasibility'},
+  'AIS ECO PRIME Retail':[
+    {d:'Fixed Window', w:'400-3000', h:'400-3000', areaMax:7, wt:'0-170', infill:'5-38', depth:'62mm', rem:'One side is below 2800mm due to glass feasibility (add jumbo glass changes above both sides 2400mm)'},
     {d:'Fixed Louvers', w:'400-650', h:'400-2000', depth:'62mm'},
-    {d:'Casement Window (Side Hung)', w:'450-850', h:'450-1800', areaMax:1.7, wt:'0-40', infill:'5-38', depth:'62mm', rem:'22kg sash-weight limit — friction stay & hinge provision only'},
-    {d:'Casement Window (Top Hung)', w:'450-1000', h:'450-1200', areaMax:1.6, wt:'0-40', infill:'5-38', depth:'62mm'},
-    {d:'Casement Door', w:'550-1100', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
-    {d:'French Door', w:'1100-2200', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'Casement Window (Side Hung)', w:'450-850', h:'450-1850', areaMax:1.7, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Butt hinges required above 22kg sash weight (only friction stay & hinge provision)'},
+    {d:'Casement Window (Top Hung)', w:'450-1000', h:'450-1200', areaMax:1.6, wt:'0-40', infill:'5-38', depth:'62mm', rem:'22kg sash-weight limit (only friction stay & hinge provision)'},
+    {d:'Casement Door', w:'550-1100', h:'2000-2440', areaMax:2.7, wt:'0-80', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'French Door', w:'1100-2200', h:'2000-2440', areaMax:2.7, wt:'0-80', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
     {d:'Sliding Window', w:'450-1200', h:'500-1850', areaMax:1.9, wt:'0-60', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Infill capacity limited 5–14mm and 18–22mm'},
     {d:'Sliding Fixed Shutter (Window)', w:'450-1800', h:'500-1850', areaMax:6, wt:'0-60', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Infill capacity limited 5–14mm and 18–22mm'},
-    {d:'Sliding Door', w:'500-1450', h:'2000-2700', areaMax:3.6, wt:'0-90', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
-    {d:'Sliding Fixed Shutter (Door)', w:'500-2000', h:'2000-2700', wt:'0-90', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
-    {d:'Sliding Window (2.5 Track)', w:'450-1050', h:'500-1700', areaMax:2.2, wt:'0-60', infill:'5-22', depth:'93mm', rem:'Infill capacity limited 5–14mm and 18–22mm'},
+    {d:'Sliding Door', w:'500-1450', h:'2000-2700', areaMax:3.6, wt:'0-90', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1200mm/panel; above 3rd floor, HB required above height 2100mm (above 2500mm height use 2.5mm reinforcement, max width 1200mm)'},
+    {d:'Sliding Fixed Shutter (Door)', w:'500-2000', h:'2000-2700', areaMax:6, wt:'0-90', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1200mm/panel; above 3rd floor, HB required above height 2100mm (above 2500mm height use 2.5mm reinforcement, max width 1200mm)'},
+    {d:'Sliding Window (2.5 Track)', w:'450-1050', h:'500-1650', areaMax:2.2, wt:'0-60', infill:'5-22', depth:'93mm', rem:'Infill capacity limited 5–14mm and 18–22mm'},
     {d:'Sliding Window (Monorail)', w:'450-1200', h:'500-1800', areaMax:2.3, wt:'0-60', infill:'5-22', depth:'77mm', rem:'Infill capacity limited 5–14mm and 18–22mm'},
-    {d:'Sliding Door (Monorail)', w:'500-1250', h:'2000-2500', areaMax:3.6, wt:'0-90', infill:'5-22', depth:'77mm', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
-    {d:'Arc Windows', w:'900-2500', h:'500-1250', areaMax:3.5, wt:'0-170', infill:'5-38', depth:'62mm', rem:'Min width 900mm & height 500mm; max width 2500mm & height 1250mm'},
-    {d:'Glass To Glass Joint', w:'400-1400', h:'500-2440', areaMax:3, wt:'0-170', infill:'10-38', depth:'62mm', rem:'Consult technical team for larger glass-to-glass joints; max 2440h×1400w per panel; above that use laminated 8+2.28pvb+8mm'},
+    {d:'Sliding Door (Monorail)', w:'500-1250', h:'2000-2700', areaMax:3.6, wt:'0-90', infill:'5-22', depth:'77mm', rem:'Hurricane bar required above height 2400mm or width >1200mm/panel; above 3rd floor, HB required above height 2100mm (above 2500mm height use 2.5mm reinforcement, max width 1200mm)'},
+    {d:'Arc Windows', w:'900-2500', h:'500-1250', areaMax:3.5, wt:'0-170', infill:'5-38', depth:'62mm', rem:'Minimum width 900mm & height 500mm; maximum width 2400mm & height 1000mm'},
+    {d:'Glass To Glass Joint', w:'400-1400', h:'500-2700', areaMax:3, wt:'0-170', infill:'10-38', depth:'62mm', rem:'Consult technical team for larger glass-to-glass joints; max 2440h×1400w per panel (laminated 8+2.28+8mm above height 2440mm)'},
     {d:'Twin Sash (Window)', w:'450-800', h:'600-1800', areaMax:1.2, wt:'0-40', infill:'5-36', depth:'112mm'},
-    {d:'HD Patio Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-200', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)'},
-    {d:'Tilt & Slide Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-200', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)'},
+    {d:'HD Patio Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-300', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)'},
+    {d:'Sliding Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-300', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)', rem:'"Lift and Slide Door" variant'},
   ],
 };
 
@@ -731,7 +957,7 @@ const DESIGN_MAP = {
   'Casement':     {upvc:['Casement Window (Side Hung)','Casement Window (Top Hung)'], alum:['regalNeo_casement','regalSelect_casement']},
   'Casement Door':{upvc:['Casement Door','French Door'], alum:['regalSelect_door']},
   'Sliding':      {upvc:['Sliding Window','Sliding Fixed Shutter (Window)','Sliding Window (2.5 Track)','Sliding Window (Monorail)'], alum:['regalNeo_window','regalSelectSLD_window','regalSelectMinimal_window']},
-  'Sliding Door': {upvc:['Sliding Door','Sliding Fixed Shutter (Door)','Sliding Door (Monorail)'], alum:['regalNeo_door','regalSelectSLD_door','regalSelectMinimal_door','regalSelectMonorail_door','regalSelectIntRail_door','regalSelectDefender_door','royalElite_door']},
+  'Sliding Door': {upvc:['Sliding Door','Sliding Fixed Shutter (Door)','Sliding Door (Monorail)','HD Patio Door'], alum:['regalNeo_door','regalSelectSLD_door','regalSelectMinimal_door','regalSelectMonorail_door','regalSelectIntRail_door','regalSelectDefender_door','royalElite_door']},
   'Tilt & Turn':  {upvc:['Tilt & Turn Window'], alum:[]},
   'Slide & Fold': {upvc:['Slide & Fold Door'], alum:[]},
   'Twin Sash':    {upvc:['Twin Sash (Window)'], alum:[]},
@@ -852,38 +1078,91 @@ function estimateSashCount(item){
   const commaCount=(s)=>s?s.split(',').map(x=>x.trim()).filter(Boolean).length:0;
   const commaMax=Math.max(commaCount(item.lockingType),commaCount(item.handleType));
 
-  return Math.max(maxLabel,commaMax,1);
+  // "French" window/door is, by definition, a pair of sashes — floor to 2 if nothing
+  // stronger was detected (a lone handle entry on a French design is still 2 sashes,
+  // it just means only one leaf is labelled as the "active" one in the quote text)
+  const frenchFloor=/french/i.test(name)?2:0;
+
+  return Math.max(maxLabel,commaMax,frenchFloor,1);
 }
 function isVerticalSashSplit(item){
   return /twin.?sash/i.test((item.windowType||'')+' '+(item.designName||''));
 }
-/* Returns {count, w, h, weight, vertical, rows, cols} — w/h/weight are PER-SASH values.
+/* "...WITH TOP FIX" / "TOP FIXED" designs carry a separate small fixed toplight above
+   the operable sash band — its height must come OUT of the total before the operable
+   sashes' height is checked, or that band gets checked as if it ran the full frame
+   height (the bug: a 2100mm-tall unit with a 350mm top-fix has ~1750mm operable sashes,
+   not 2100mm ones). Height is an assumption (user-confirmed range 300–450mm) since the
+   quote line carries only the combined total — see QA_CONFIG.material.topFixAllowanceMm. */
+function detectTopFix(item){
+  return /top[\s-]*fix/i.test((item.designName||'')+' '+(item.windowType||''));
+}
+/* "X CUM Y" designs (e.g. "TOP HUNG CUM LOUVERS") stack two or more different
+   functional zones — an operable band, a louvre band, a fixed band — into one frame.
+   Unlike "top fix" there's no reliable default split (a louvre band's height varies a
+   lot more than a toplight's), and no single catalog row represents the combined
+   product at all. Rather than guess a split and risk a false pass or false fail either
+   way, this is flagged for manual technical review instead of auto-checked. */
+function detectCompositeDesign(item){
+  return /\bcum\b/i.test(item.designName||'');
+}
+/* Returns {count, w, h, weight, vertical, rows, cols, hasTopFix, topFixMm, operableH, isComposite} —
+   w/h/weight are PER-SASH values for the OPERABLE band.
    Twin Sash designs pair a top and bottom sash per column (a 2-row grid), so both
    width and height are apportioned; other multi-sash designs (sliding, slide & fold,
    multi-leaf casement) are modelled as a single row of side-by-side sashes. */
 function getPerSash(item){
-  const count=estimateSashCount(item);
   const totalW=item.width||0, totalH=item.height||0;
+
+  if(detectCompositeDesign(item)){
+    // Composite "X cum Y" — don't attempt a split; flag for manual review instead.
+    return {count:1,w:totalW,h:totalH,weight:item.weight,vertical:false,rows:1,cols:1,
+            hasTopFix:false,topFixMm:0,operableH:totalH,isComposite:true};
+  }
+
+  const count=estimateSashCount(item);
   const vertical=isVerticalSashSplit(item);
+
+  const hasTopFix=detectTopFix(item);
+  const topFixMm=QA_CONFIG.material.topFixAllowanceMm;
+  // Only apply the top-fix deduction if it leaves a sane operable band — otherwise
+  // the "top fix" text is describing something else and the deduction is skipped.
+  const applyTopFix = hasTopFix && (totalH-topFixMm)>=300;
+  const operableH = applyTopFix ? (totalH-topFixMm) : totalH;
+
   let rows=1, cols=count;
   if(count>1 && vertical){ rows=2; cols=Math.max(1,Math.round(count/2)); }
   const w = count>1 ? qaRound(totalW/cols,0) : totalW;
-  const h = count>1 ? qaRound(totalH/rows,0) : totalH;
+  const h = count>1 ? qaRound(operableH/rows,0) : operableH;
   const weight = item.weight>0 ? qaRound(item.weight/count,1) : item.weight;
-  return {count,w,h,weight,vertical,rows,cols};
+  return {count,w,h,weight,vertical,rows,cols,hasTopFix:applyTopFix,topFixMm:applyTopFix?topFixMm:0,operableH,isComposite:false};
 }
 
 function sashArrangementText(ps){
-  if(ps.count<=1) return '';
-  return ps.vertical ? `a ${ps.rows}×${ps.cols} grid (${ps.count} sashes)` : `${ps.count} sashes side by side`;
+  if(ps.isComposite) return `a composite "cum" design (multiple stacked zones) — not split, flagged for manual review`;
+  const parts=[];
+  if(ps.count>1) parts.push(ps.vertical ? `a ${ps.rows}×${ps.cols} grid (${ps.count} sashes)` : `${ps.count} sashes side by side`);
+  if(ps.hasTopFix) parts.push(`~${ps.topFixMm}mm top-fix toplight deducted from the height (assumed — not stated on the quote line)`);
+  return parts.join('; ');
 }
 
 function qaMaterialFeasibility(item){
   const totalW=item.width||0,totalH=item.height||0;
   if(!totalW||!totalH) return null;
   const ps=getPerSash(item);
+
+  if(ps.isComposite){
+    return {
+      verdict:'na',
+      reason:`"${item.designName}" combines multiple functional zones (e.g. an operable band plus a louvre/fixed band) into one ${totalW}×${totalH}mm frame. This isn't a single row in the AIS limitation catalog, so an automatic size check doesn't apply cleanly — have the technical team confirm each zone's own height sits within its component's normal catalog range, rather than checking the full ${totalH}mm as one continuous sash.`,
+      needsMullion:false,
+      perSash:ps
+    };
+  }
+
   const w=ps.w, h=ps.h;
-  const sashNote=ps.count>1?` (unit is ${totalW}×${totalH}mm overall; treated as ${sashArrangementText(ps)} → ~${w}×${h}mm per sash for this check)`:'';
+  const sashAdjusted=ps.count>1||ps.hasTopFix;
+  const sashNote=sashAdjusted?` (unit is ${totalW}×${totalH}mm overall; treated as ${sashArrangementText(ps)} → ~${w}×${h}mm per sash for this check)`:'';
   const cat=item.windowType||inferType(item.designName);
   const map=DESIGN_MAP[cat];
   if(!map || (!map.upvc.length && !map.alum.length)){
@@ -956,8 +1235,10 @@ function validateItem(it,site){
   //    every downstream per-sash calculation is visible and can be sanity-checked
   if(it.width&&it.height){
     const psInfo=getPerSash(it);
-    if(psInfo.count>1){
-      checks.push({cat:'Sash configuration',status:'pass',detail:`Detected ${sashArrangementText(psInfo)} from the handle/lock labels — unit ${it.width}×${it.height}mm treated as ~${psInfo.w}×${psInfo.h}mm per sash${it.weight?`, ~${psInfo.weight}kg per sash`:''} for the checks below. If this count looks wrong for this design, treat the flags below with that in mind.`});
+    if(psInfo.isComposite){
+      checks.push({cat:'Sash configuration',status:'warn',detail:`"${it.designName}" reads as ${sashArrangementText(psInfo)}. Size, weight, and glass checks below are shown against the full ${it.width}×${it.height}mm unit rather than a computed per-zone split.`});
+    }else if(psInfo.count>1||psInfo.hasTopFix){
+      checks.push({cat:'Sash configuration',status:'pass',detail:`Detected ${sashArrangementText(psInfo)} from the handle/lock labels and design name — unit ${it.width}×${it.height}mm treated as ~${psInfo.w}×${psInfo.h}mm per sash${it.weight?`, ~${psInfo.weight}kg per sash`:''} for the checks below. If this looks wrong for this design, treat the flags below with that in mind.`});
     }else{
       checks.push({cat:'Sash configuration',status:'pass',detail:`Single sash detected — full unit size and weight used as-is for the checks below.`});
     }
@@ -966,14 +1247,18 @@ function validateItem(it,site){
   // 3. Material feasibility (size-driven, uPVC vs aluminium)
   const mat=qaMaterialFeasibility(it);
   if(mat){
-    const proposedIsUpvc=/upvc|pvc/i.test(it.profileMaterial||'');
-    const feasibleUpvc=mat.verdict==='pass';
-    if(proposedIsUpvc&&!feasibleUpvc){
-      checks.push({cat:'Material feasibility',status:'fail',detail:`Quoted as uPVC, but this size ${mat.verdict==='fail'?'structurally requires aluminium':'exceeds standard uPVC limits'}. ${mat.reason}`});
-    }else if(!proposedIsUpvc&&feasibleUpvc){
-      checks.push({cat:'Material feasibility',status:'warn',detail:`Quoted as ${it.profileMaterial||'aluminium'}; uPVC would also meet this size at typically lower cost. Confirm this was deliberate (aesthetics/thermal/sightlines).`});
+    if(mat.verdict==='na'){
+      checks.push({cat:'Material feasibility',status:'warn',detail:mat.reason});
     }else{
-      checks.push({cat:'Material feasibility',status:'pass',detail:mat.reason});
+      const proposedIsUpvc=/upvc|pvc/i.test(it.profileMaterial||'');
+      const feasibleUpvc=mat.verdict==='pass';
+      if(proposedIsUpvc&&!feasibleUpvc){
+        checks.push({cat:'Material feasibility',status:'fail',detail:`Quoted as uPVC, but this size ${mat.verdict==='fail'?'structurally requires aluminium':'exceeds standard uPVC limits'}. ${mat.reason}`});
+      }else if(!proposedIsUpvc&&feasibleUpvc){
+        checks.push({cat:'Material feasibility',status:'warn',detail:`Quoted as ${it.profileMaterial||'aluminium'}; uPVC would also meet this size at typically lower cost. Confirm this was deliberate (aesthetics/thermal/sightlines).`});
+      }else{
+        checks.push({cat:'Material feasibility',status:'pass',detail:mat.reason});
+      }
     }
   }
 
@@ -1016,6 +1301,9 @@ function validateItem(it,site){
   //    since hardware capacity applies per sash, not to the whole multi-sash unit)
   const ps4=getPerSash(it);
   if(it.weight>0){
+    if(ps4.isComposite){
+      checks.push({cat:'Hardware / locking',status:'warn',detail:`Composite "cum" design — the quoted weight (${it.weight}kg) covers all stacked zones combined, not just the operable sash, so a hardware-capacity check here would be misleading. Confirm hardware adequacy manually against the operable sash's actual weight.`});
+    }else{
     const sashWt=ps4.weight;
     const wtNote=ps4.count>1?` (${it.weight}kg total ÷ ${ps4.count} sashes)`:'';
     const tier=qaHardwareTier(sashWt);
@@ -1029,6 +1317,7 @@ function validateItem(it,site){
     }else{
       checks.push({cat:'Hardware / locking',status:'pass',detail:`~${sashWt}kg per sash${wtNote} — recommended tier "${tier.name}" — consistent with quoted "${lockText.trim()}".`});
     }
+    }
   }
 
   // 6. Wind pressure + glass thickness (only with site data) — uses per-sash glass area,
@@ -1038,8 +1327,11 @@ function validateItem(it,site){
     checks.push({cat:'Wind load / glass spec',status:'warn',detail:'Site & wind data not provided — design wind pressure and glass-thickness adequacy cannot be checked for this item. Fill in the site panel above to enable this check.'});
   }else if(it.width&&it.height){
     const ps5=getPerSash(it);
+    if(ps5.isComposite){
+      checks.push({cat:'Wind load / glass spec',status:'warn',detail:`Composite "cum" design — the ${it.width}×${it.height}mm total spans multiple zones, so a single per-sash glass area can't be derived reliably. Validate each zone's glass spec against its own wind-load requirement manually.`});
+    }else{
     const areaM2=(ps5.w/1000)*(ps5.h/1000);
-    const areaNote=ps5.count>1?` (per sash, from a ${it.width}×${it.height}mm unit treated as ${ps5.count} sashes)`:'';
+    const areaNote=(ps5.count>1||ps5.hasTopFix)?` (per sash, from a ${it.width}×${it.height}mm unit — ${sashArrangementText(ps5)})`:'';
     const glass=qaGlassPlaceholder(areaM2,wind.pz);
     const quotedMm=qaExtractGlassMm(it.glass);
     if(quotedMm==null){
@@ -1048,6 +1340,7 @@ function validateItem(it,site){
       checks.push({cat:'Wind load / glass spec',status:'fail',detail:`Design wind pressure ${wind.pz}Pa on a ~${ps5.w}×${ps5.h}mm pane${areaNote}. Quoted glass build-up (~${quotedMm}mm) is below the placeholder-recommended ${glass.recommendedMm}mm. This band is illustrative, not a certified chart — re-check against ASTM E1300/IS 16231 or AIS-59 before acting.`});
     }else{
       checks.push({cat:'Wind load / glass spec',status:'pass',detail:`Design wind pressure ${wind.pz}Pa on a ~${ps5.w}×${ps5.h}mm pane${areaNote}. Quoted glass build-up (~${quotedMm}mm) meets the placeholder-recommended ${glass.recommendedMm}mm. (Placeholder logic — validate against a certified chart.)`});
+    }
     }
   }
 
@@ -1116,6 +1409,466 @@ function toast(msg,type=''){
   setTimeout(()=>{t.style.cssText='opacity:0;transform:translateX(12px);transition:all .25s';setTimeout(()=>t.remove(),260);},2800);
 }
 
+/* ═══════════════════════════════════════════════════════
+   KNOWLEDGE BASE SETTINGS — editable size/coupler/hardware data
+   Persisted per-table/per-series in localStorage so a future code
+   update's NEW defaults are never silently shadowed by an old full
+   snapshot — only tables the user has explicitly saved are overridden.
+   Browser-local only (not synced across devices/users) — use Export/
+   Import backup to move settings, or Reset to defaults to clear.
+═══════════════════════════════════════════════════════ */
+const KB_PREFIX='aisQaKb.';
+const KB_FLAT_TABLES=['windCities','hardwareTiers','couplersUpvc','couplersAlum','alumSliding','alumCasement','alumVentilation'];
+const KB_FIELDS={
+  windCities:[{key:'name',label:'City',type:'text'},{key:'vb',label:'Vb (m/s)',type:'number'}],
+  hardwareTiers:[{key:'maxKg',label:'Max kg',type:'number'},{key:'points',label:'Lock pts',type:'number'},{key:'name',label:'Description',type:'text'}],
+  couplersUpvc:[{key:'series',label:'Series',type:'text'},{key:'code',label:'Code',type:'text'},{key:'desc',label:'Description',type:'text'},{key:'a',label:'Side A',type:'number'},{key:'b',label:'Side B',type:'number'},{key:'angle',label:'Angle',type:'text'},{key:'len',label:'Len limit',type:'number'}],
+  couplersAlum:[{key:'series',label:'Series',type:'text'},{key:'code',label:'Code',type:'text'},{key:'desc',label:'Description',type:'text'},{key:'a',label:'Side A',type:'number'},{key:'b',label:'Side B',type:'number'},{key:'angle',label:'Angle',type:'text'},{key:'len',label:'Len limit',type:'number'}],
+  upvcSeries:[{key:'d',label:'Design',type:'text'},{key:'w',label:'Width',type:'text',range:true},{key:'h',label:'Height',type:'text',range:true},{key:'areaMax',label:'Area max',type:'number'},{key:'wt',label:'Weight',type:'text',range:true},{key:'infill',label:'Infill',type:'text',range:true},{key:'depth',label:'Depth',type:'text'},{key:'rem',label:'Remarks',type:'text'}],
+  alumSliding:[{key:'key',label:'Key',type:'text'},{key:'label',label:'Label',type:'text'},{key:'wBase',label:'W base',type:'text'},{key:'wReinf',label:'W reinf',type:'text'},{key:'wDbl',label:'W dbl',type:'text'},{key:'hBase',label:'H base',type:'text'},{key:'hReinf',label:'H reinf',type:'text'},{key:'hDbl',label:'H dbl',type:'text'},{key:'maxWt',label:'Max kg',type:'number'},{key:'glass',label:'Glass',type:'text'},{key:'absMax',label:'Abs max',type:'text'},{key:'rem',label:'Remarks',type:'text'}],
+  alumCasement:[{key:'key',label:'Key',type:'text'},{key:'label',label:'Label',type:'text'},{key:'w',label:'Width',type:'text'},{key:'h',label:'Height',type:'text'},{key:'maxWt',label:'Max kg',type:'number'},{key:'glass',label:'Glass',type:'text'},{key:'rem',label:'Remarks',type:'text'}],
+  alumVentilation:[{key:'key',label:'Key',type:'text'},{key:'label',label:'Label',type:'text'},{key:'w',label:'Width',type:'text'},{key:'h',label:'Height',type:'text'},{key:'glass',label:'Glass',type:'text'}],
+};
+const KB_CONTAINER_FOR={windCities:'kbWindTable',hardwareTiers:'kbHardwareTable',couplersUpvc:'kbCouplersUpvcTable',couplersAlum:'kbCouplersAlumTable',alumSliding:'kbAlumTable',alumCasement:'kbAlumTable',alumVentilation:'kbAlumTable',upvcSeries:'kbUpvcTable'};
+
+function kbGet(key){ try{ const raw=localStorage.getItem(KB_PREFIX+key); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
+function kbSet(key,val){ try{ localStorage.setItem(KB_PREFIX+key, JSON.stringify(val)); }catch(e){ toast('Could not save — browser storage may be full or disabled','err'); } }
+function kbRemoveAll(){
+  try{
+    const keys=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf(KB_PREFIX)===0) keys.push(k); }
+    keys.forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+function kbTableRef(key){
+  switch(key){
+    case 'windCities': return WIND_CITIES;
+    case 'hardwareTiers': return QA_CONFIG.hardwareTiers;
+    case 'couplersUpvc': return COUPLERS;
+    case 'couplersAlum': return ALUM_COUPLERS;
+    case 'alumSliding': return ALUM_SLIDING;
+    case 'alumCasement': return ALUM_CASEMENT;
+    case 'alumVentilation': return ALUM_VENTILATION;
+  }
+  return null;
+}
+function loadKBOverrides(){
+  KB_FLAT_TABLES.forEach(k=>{
+    const saved=kbGet(k);
+    if(saved){ const ref=kbTableRef(k); ref.length=0; ref.push(...saved); }
+  });
+  const mat=kbGet('material'); if(mat) Object.assign(QA_CONFIG.material, mat);
+  const wind=kbGet('wind'); if(wind) Object.assign(QA_CONFIG.wind, wind);
+  const ms=kbGet('msCeiling'); if(ms) Object.assign(MULLION_MS_CEILING, ms);
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && k.indexOf(KB_PREFIX+'upvcSeries.')===0){
+        const seriesName=k.slice((KB_PREFIX+'upvcSeries.').length);
+        const rows=kbGet('upvcSeries.'+seriesName);
+        if(rows) UPVC_SERIES[seriesName]=rows;
+      }
+    }
+  }catch(e){}
+}
+function applyKBData(data){
+  if(!data) return;
+  KB_FLAT_TABLES.forEach(k=>{ if(data[k]){ const ref=kbTableRef(k); ref.length=0; ref.push(...data[k]); } });
+  if(data.material) Object.assign(QA_CONFIG.material, data.material);
+  if(data.wind) Object.assign(QA_CONFIG.wind, data.wind);
+  if(data.msCeiling) Object.assign(MULLION_MS_CEILING, data.msCeiling);
+  if(data.upvcSeries) Object.keys(data.upvcSeries).forEach(name=>{ UPVC_SERIES[name]=data.upvcSeries[name]; });
+}
+
+/* ── Generic row-table editor (shared by every KB pane) ── */
+function kbFieldsFor(tableKey){ return KB_FIELDS[tableKey.indexOf('upvcSeries:')===0?'upvcSeries':tableKey]||[]; }
+function kbContainerFor(tableKey){ return KB_CONTAINER_FOR[tableKey.indexOf('upvcSeries:')===0?'upvcSeries':tableKey]; }
+function kbGetWorking(tableKey){
+  if(!(tableKey in S._kbWorking)){
+    let ref;
+    if(tableKey.indexOf('upvcSeries:')===0) ref=UPVC_SERIES[tableKey.slice(11)];
+    else ref=kbTableRef(tableKey);
+    S._kbWorking[tableKey]=JSON.parse(JSON.stringify(ref||[]));
+  }
+  return S._kbWorking[tableKey];
+}
+function kbRenderTable(tableKey){
+  const containerId=kbContainerFor(tableKey);
+  const c=g(containerId); if(!c) return;
+  const fields=kbFieldsFor(tableKey);
+  const rows=kbGetWorking(tableKey);
+  const cols=fields.map(()=>'minmax(70px,1fr)').join(' ')+' 32px';
+  let html=`<div class="kb-table-wrap"><div class="kb-row" style="grid-template-columns:${cols};font-weight:600;background:var(--card)">`+
+    fields.map(f=>`<div>${esc(f.label)}</div>`).join('')+`<div></div></div>`;
+  rows.forEach((row,i)=>{
+    html+=`<div class="kb-row" style="grid-template-columns:${cols}" data-idx="${i}">`+
+      fields.map(f=>`<input type="${f.type==='number'?'number':'text'}" data-field="${f.key}" value="${esc(row[f.key]!=null?row[f.key]:'')}">`).join('')+
+      `<button class="kb-del" onclick="kbDeleteRow('${tableKey}',${i})" title="Delete row">✕</button></div>`;
+  });
+  html+='</div>';
+  c.innerHTML=html;
+}
+function kbSyncDom(tableKey){
+  const containerId=kbContainerFor(tableKey);
+  const c=g(containerId); if(!c) return;
+  const fields=kbFieldsFor(tableKey);
+  const working=kbGetWorking(tableKey);
+  c.querySelectorAll('.kb-row[data-idx]').forEach(rowEl=>{
+    const idx=parseInt(rowEl.getAttribute('data-idx'));
+    if(!working[idx]) return;
+    fields.forEach(f=>{
+      const inp=rowEl.querySelector(`[data-field="${f.key}"]`);
+      if(!inp) return;
+      let v=inp.value;
+      if(f.type==='number') v=v===''?0:parseFloat(v);
+      working[idx][f.key]=v;
+    });
+  });
+}
+function kbAddRow(tableKey){
+  if(tableKey==='upvcSeries') tableKey='upvcSeries:'+g('kbUpvcSeriesSelect').value;
+  kbSyncDom(tableKey);
+  const working=kbGetWorking(tableKey);
+  const fields=kbFieldsFor(tableKey);
+  const blank={}; fields.forEach(f=>blank[f.key]=f.type==='number'?0:'');
+  working.push(blank);
+  kbRenderTable(tableKey);
+}
+function kbDeleteRow(tableKey, idx){
+  kbSyncDom(tableKey);
+  const working=kbGetWorking(tableKey);
+  working.splice(idx,1);
+  kbRenderTable(tableKey);
+}
+
+/* ── uPVC series tab ── */
+function kbPopulateUpvcSeriesSelect(){
+  const sel=g('kbUpvcSeriesSelect'); if(!sel) return;
+  const cur=sel.value;
+  const names=Object.keys(UPVC_SERIES);
+  sel.innerHTML=names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if(names.includes(cur)) sel.value=cur;
+}
+function kbRenderUpvcSeries(){
+  const name=g('kbUpvcSeriesSelect').value;
+  if(name) kbRenderTable('upvcSeries:'+name);
+}
+function kbAddUpvcSeries(){
+  const name=prompt('New uPVC series name (e.g. "AIS Custom Series"):');
+  if(!name) return;
+  if(UPVC_SERIES[name]){ toast('A series with that name already exists','err'); return; }
+  UPVC_SERIES[name]=[];
+  kbPopulateUpvcSeriesSelect();
+  g('kbUpvcSeriesSelect').value=name;
+  kbRenderUpvcSeries();
+}
+
+/* ── Aluminium tab ── */
+function kbRenderAlum(){ kbRenderTable(g('kbAlumCatSelect').value); }
+
+/* ── Material rules tab (plain form, not a row table) ── */
+function kbRenderMaterialForm(){
+  const m=QA_CONFIG.material, w=QA_CONFIG.wind;
+  g('kbMaterialForm').innerHTML=`
+    <div class="kb-map-row"><label>uPVC max single-member length (mm)</label><input type="number" id="kbMaxMember" value="${m.maxMemberLength}"></div>
+    <div class="kb-map-row"><label>uPVC hardware weight ceiling (kg)</label><input type="number" id="kbSashWtLimit" value="${m.upvcSashWeightLimitKg}"></div>
+    <div class="kb-map-row"><label>Assumed "top fix" height (mm)</label><input type="number" id="kbTopFixMm" value="${m.topFixAllowanceMm}"></div>
+    <div class="kb-map-row"><label>MS-structure ceiling — uPVC (mm)</label><input type="number" id="kbMsUpvc" value="${MULLION_MS_CEILING.upvc}"></div>
+    <div class="kb-map-row"><label>MS-structure ceiling — Aluminium (mm)</label><input type="number" id="kbMsAlum" value="${MULLION_MS_CEILING.aluminium}"></div>
+    <div class="kb-map-row"><label>Wind: risk coefficient k1</label><input type="number" step="0.01" id="kbK1" value="${w.k1}"></div>
+    <div class="kb-map-row"><label>Wind: topography factor k3</label><input type="number" step="0.01" id="kbK3" value="${w.k3}"></div>
+    <div class="kb-map-row"><label>Wind: cyclonic importance k4</label><input type="number" step="0.01" id="kbK4" value="${w.k4}"></div>`;
+}
+
+/* ── Modal open/close/tabs ── */
+/* ── Settings access gate ──────────────────────────────────
+   Client-side only — this deters casual/accidental access from other
+   staff using the same app, it is NOT real security. Anyone who opens
+   browser dev tools can call openKBUnlocked() directly or read this
+   source. Don't rely on it to protect anything beyond "don't let
+   people idly click into Settings and change things." ── */
+const KB_AUTH_EMAIL='sanju.gupta@aisglass.com';
+const KB_AUTH_PASS_HASH='61d023f68dc63c84a68c8aa78bd59997a1dc0df06b1192c484179b43dc6f2946'; // SHA-256, not the plaintext password
+const KB_AUTH_SESSION_KEY='aisQaKbUnlocked';
+async function sha256Hex(str){
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function kbIsUnlocked(){
+  try{ return sessionStorage.getItem(KB_AUTH_SESSION_KEY)==='1'; }catch(e){ return false; }
+}
+async function kbTryLogin(){
+  const email=(g('kbLoginEmail').value||'').trim().toLowerCase();
+  const pass=g('kbLoginPass').value||'';
+  const errEl=g('kbLoginErr');
+  errEl.textContent='';
+  if(!(window.crypto&&window.crypto.subtle)){
+    errEl.textContent='This browser can\'t verify the password securely here — open the app over HTTPS (e.g. its GitHub Pages URL) rather than a local file.';
+    return;
+  }
+  if(email!==KB_AUTH_EMAIL.toLowerCase()){ errEl.textContent='Incorrect email or password.'; return; }
+  const hash=await sha256Hex(pass);
+  if(hash!==KB_AUTH_PASS_HASH){ errEl.textContent='Incorrect email or password.'; return; }
+  try{ sessionStorage.setItem(KB_AUTH_SESSION_KEY,'1'); }catch(e){}
+  g('kbLoginBg').classList.remove('show');
+  g('kbLoginPass').value='';
+  openKBUnlocked();
+}
+function kbLock(){
+  try{ sessionStorage.removeItem(KB_AUTH_SESSION_KEY); }catch(e){}
+  closeKB();
+  toast('Settings locked','');
+}
+function openKB(){
+  if(kbIsUnlocked()){ openKBUnlocked(); return; }
+  g('kbLoginErr').textContent='';
+  g('kbLoginPass').value='';
+  g('kbLoginBg').classList.add('show');
+  setTimeout(()=>g('kbLoginEmail').focus(),50);
+}
+function openKBUnlocked(){
+  S._kbWorking={};
+  kbPopulateUpvcSeriesSelect();
+  switchKBTab('wind');
+  g('kbModalBg').classList.add('show');
+}
+function closeKB(){ g('kbModalBg').classList.remove('show'); }
+function switchKBTab(tab){
+  document.querySelectorAll('.kb-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.kb-pane').forEach(p=>p.classList.toggle('active', p.dataset.pane===tab));
+  if(tab==='wind') kbRenderTable('windCities');
+  else if(tab==='material') kbRenderMaterialForm();
+  else if(tab==='upvc') kbRenderUpvcSeries();
+  else if(tab==='alum') kbRenderAlum();
+  else if(tab==='couplers'){ kbRenderTable('couplersUpvc'); kbRenderTable('couplersAlum'); }
+  else if(tab==='hardware') kbRenderTable('hardwareTiers');
+}
+function kbSaveActivePane(){
+  const activeEl=document.querySelector('.kb-tab.active');
+  const active=activeEl?activeEl.dataset.tab:'';
+  if(active==='wind'){
+    kbSyncDom('windCities');
+    const working=kbGetWorking('windCities');
+    WIND_CITIES.length=0; WIND_CITIES.push(...working);
+    kbSet('windCities', WIND_CITIES);
+    renderCityOptions();
+  }else if(active==='material'){
+    QA_CONFIG.material.maxMemberLength=parseFloat(g('kbMaxMember').value)||QA_CONFIG.material.maxMemberLength;
+    QA_CONFIG.material.upvcSashWeightLimitKg=parseFloat(g('kbSashWtLimit').value)||QA_CONFIG.material.upvcSashWeightLimitKg;
+    QA_CONFIG.material.topFixAllowanceMm=parseFloat(g('kbTopFixMm').value)||QA_CONFIG.material.topFixAllowanceMm;
+    MULLION_MS_CEILING.upvc=parseFloat(g('kbMsUpvc').value)||MULLION_MS_CEILING.upvc;
+    MULLION_MS_CEILING.aluminium=parseFloat(g('kbMsAlum').value)||MULLION_MS_CEILING.aluminium;
+    QA_CONFIG.wind.k1=parseFloat(g('kbK1').value)||QA_CONFIG.wind.k1;
+    QA_CONFIG.wind.k3=parseFloat(g('kbK3').value)||QA_CONFIG.wind.k3;
+    QA_CONFIG.wind.k4=parseFloat(g('kbK4').value)||QA_CONFIG.wind.k4;
+    kbSet('material', QA_CONFIG.material);
+    kbSet('wind', QA_CONFIG.wind);
+    kbSet('msCeiling', MULLION_MS_CEILING);
+  }else if(active==='upvc'){
+    const seriesName=g('kbUpvcSeriesSelect').value;
+    if(!seriesName){ toast('Choose or create a series first',''); return; }
+    const tableKey='upvcSeries:'+seriesName;
+    kbSyncDom(tableKey);
+    const working=kbGetWorking(tableKey);
+    UPVC_SERIES[seriesName]=working;
+    kbSet('upvcSeries.'+seriesName, working);
+  }else if(active==='alum'){
+    const cat=g('kbAlumCatSelect').value;
+    kbSyncDom(cat);
+    const working=kbGetWorking(cat);
+    const ref=kbTableRef(cat);
+    ref.length=0; ref.push(...working);
+    kbSet(cat, ref);
+  }else if(active==='couplers'){
+    ['couplersUpvc','couplersAlum'].forEach(k=>{
+      kbSyncDom(k);
+      const working=kbGetWorking(k);
+      const ref=kbTableRef(k);
+      ref.length=0; ref.push(...working);
+      kbSet(k, ref);
+    });
+  }else if(active==='hardware'){
+    kbSyncDom('hardwareTiers');
+    const working=kbGetWorking('hardwareTiers');
+    QA_CONFIG.hardwareTiers.length=0; QA_CONFIG.hardwareTiers.push(...working);
+    kbSet('hardwareTiers', QA_CONFIG.hardwareTiers);
+  }else{
+    toast('Nothing to save on this tab — use the Import wizard or Backup buttons instead',''); return;
+  }
+  toast('Settings saved ✓','ok');
+  if(S.items.length) revalidateAll();
+}
+
+/* ── Excel/CSV guided import wizard ── */
+function kbHandleFile(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      S._kbImport={wb, sheetName:wb.SheetNames[0], mapping:{}};
+      kbRenderImportWizard();
+    }catch(err){ toast('Could not read that file — is it a valid Excel/CSV?','err'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function kbImportSetSheet(name){ S._kbImport.sheetName=name; S._kbImport.headerRowIdx=undefined; kbRenderImportWizard(); }
+function kbImportSetHeaderRow(idx){ S._kbImport.headerRowIdx=parseInt(idx); kbRenderImportWizard(); }
+function kbImportSetTarget(key){ S._kbImport.target=key; kbRenderImportWizard(); }
+function kbRenderImportWizard(){
+  const imp=S._kbImport;
+  const ws=imp.wb.Sheets[imp.sheetName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  imp.rows=rows;
+  const headerRowIdx = imp.headerRowIdx!=null ? imp.headerRowIdx : rows.findIndex(r=>r.some(c=>String(c).trim()!==''));
+  imp.headerRowIdx=headerRowIdx;
+  const headerRow=rows[headerRowIdx]||[];
+  const targetKey=imp.target||'upvcSeries';
+  const fields=kbFieldsFor(targetKey);
+
+  let html='<div style="margin:14px 0 18px">';
+  html+=`<div class="kb-map-row"><label>Sheet</label><select onchange="kbImportSetSheet(this.value)">${imp.wb.SheetNames.map(n=>`<option value="${esc(n)}"${n===imp.sheetName?' selected':''}>${esc(n)}</option>`).join('')}</select></div>`;
+  html+=`<div class="kb-map-row"><label>Header row</label><select onchange="kbImportSetHeaderRow(this.value)">${rows.slice(0,20).map((r,i)=>`<option value="${i}"${i===headerRowIdx?' selected':''}>Row ${i+1}: ${esc(r.slice(0,5).join(' | ')).slice(0,60)}</option>`).join('')}</select></div>`;
+  html+=`<div class="kb-map-row"><label>Import into</label><select onchange="kbImportSetTarget(this.value)">
+    <option value="upvcSeries"${targetKey==='upvcSeries'?' selected':''}>uPVC size series</option>
+    <option value="alumSliding"${targetKey==='alumSliding'?' selected':''}>Aluminium — Sliding</option>
+    <option value="alumCasement"${targetKey==='alumCasement'?' selected':''}>Aluminium — Casement</option>
+    <option value="alumVentilation"${targetKey==='alumVentilation'?' selected':''}>Aluminium — Ventilation</option>
+    <option value="couplersUpvc"${targetKey==='couplersUpvc'?' selected':''}>uPVC couplers</option>
+    <option value="couplersAlum"${targetKey==='couplersAlum'?' selected':''}>Aluminium couplers</option>
+  </select></div>`;
+  if(targetKey==='upvcSeries'){
+    html+=`<div class="kb-map-row"><label>Series name</label><input type="text" id="kbImportSeriesName" placeholder="e.g. AIS ECO Retail" value="${esc(imp.seriesName||'')}" onchange="S._kbImport.seriesName=this.value"></div>`;
+  }
+  html+='</div><div style="font-weight:600;font-size:12.5px;margin-bottom:6px;color:var(--t1)">Map spreadsheet columns to fields</div>';
+  html+=fields.map(f=>{
+    if(f.range){
+      const selMin=imp.mapping&&imp.mapping[f.key]&&imp.mapping[f.key].min!=null?imp.mapping[f.key].min:-1;
+      const selMax=imp.mapping&&imp.mapping[f.key]&&imp.mapping[f.key].max!=null?imp.mapping[f.key].max:-1;
+      const opts=(sel)=>`<option value="-1"${sel===-1?' selected':''}>— not in file —</option>`+headerRow.map((h,ci)=>`<option value="${ci}"${sel===ci?' selected':''}>${esc(String(h||('Column '+(ci+1))))}</option>`).join('');
+      return `<div class="kb-map-row"><label>${esc(f.label)} (min / max)</label><div style="display:flex;gap:6px"><select id="kbMap_${f.key}_min">${opts(selMin)}</select><select id="kbMap_${f.key}_max">${opts(selMax)}</select></div></div>`;
+    }
+    const sel=imp.mapping&&imp.mapping[f.key]!=null?imp.mapping[f.key]:-1;
+    return `<div class="kb-map-row"><label>${esc(f.label)}</label><select id="kbMap_${f.key}">
+      <option value="-1"${sel===-1?' selected':''}>— not in file —</option>
+      ${headerRow.map((h,ci)=>`<option value="${ci}"${sel===ci?' selected':''}>${esc(String(h||('Column '+(ci+1))))}</option>`).join('')}
+    </select></div>`;
+  }).join('');
+  html+=`<button class="kb-add-row" style="width:100%;margin-top:14px" onclick="kbImportPreview()">Preview rows</button>
+  <div id="kbImportPreviewWrap"></div>`;
+  g('kbImportWizard').innerHTML=html;
+}
+function kbImportPreview(){
+  const imp=S._kbImport;
+  const targetKey=imp.target||'upvcSeries';
+  const fields=kbFieldsFor(targetKey);
+  const mapping={};
+  fields.forEach(f=>{
+    if(f.range){
+      const selMin=g('kbMap_'+f.key+'_min'), selMax=g('kbMap_'+f.key+'_max');
+      mapping[f.key]={min:selMin?parseInt(selMin.value):-1, max:selMax?parseInt(selMax.value):-1};
+    }else{
+      const sel=g('kbMap_'+f.key); mapping[f.key]=sel?parseInt(sel.value):-1;
+    }
+  });
+  imp.mapping=mapping;
+  const dataRows=imp.rows.slice(imp.headerRowIdx+1).filter(r=>r.some(c=>String(c).trim()!==''));
+  const parsed=dataRows.map(r=>{
+    const obj={};
+    fields.forEach(f=>{
+      if(f.range){
+        const {min,max}=mapping[f.key];
+        const minV=min>=0?String(r[min]!=null?r[min]:'').trim():'';
+        const maxV=max>=0?String(r[max]!=null?r[max]:'').trim():'';
+        obj[f.key]= minV&&maxV ? `${minV}-${maxV}` : (minV||maxV||'');
+      }else{
+        const ci=mapping[f.key];
+        let v=ci>=0?r[ci]:'';
+        if(f.type==='number') v=parseFloat(v)||0;
+        else v=String(v==null?'':v).trim();
+        obj[f.key]=v;
+      }
+    });
+    return obj;
+  }).filter(o=>Object.values(o).some(v=>v!==''&&v!==0));
+  imp.parsedRows=parsed;
+
+  let html=`<div class="kb-hint" style="margin-top:14px">${parsed.length} row(s) parsed. Review below, then confirm — nothing is saved until you click "Import".</div>
+  <div style="overflow-x:auto"><table class="kb-preview-table"><thead><tr>${fields.map(f=>`<th>${esc(f.label)}</th>`).join('')}</tr></thead><tbody>`;
+  parsed.slice(0,25).forEach(row=>{ html+=`<tr>${fields.map(f=>`<td>${esc(String(row[f.key]))}</td>`).join('')}</tr>`; });
+  html+='</tbody></table></div>';
+  if(parsed.length>25) html+=`<div class="kb-hint">…and ${parsed.length-25} more row(s), not shown.</div>`;
+  html+=`<button class="kb-save" style="width:100%;margin-top:14px" onclick="kbImportCommit()">Import these ${parsed.length} rows</button>`;
+  g('kbImportPreviewWrap').innerHTML=html;
+}
+function kbImportCommit(){
+  const imp=S._kbImport;
+  const targetKey=imp.target||'upvcSeries';
+  const rows=imp.parsedRows||[];
+  if(!rows.length){ toast('Nothing to import','err'); return; }
+  if(targetKey==='upvcSeries'){
+    const nameInput=g('kbImportSeriesName');
+    const name=nameInput?nameInput.value.trim():'';
+    if(!name){ toast('Enter a series name first','err'); return; }
+    if(UPVC_SERIES[name] && UPVC_SERIES[name].length && !confirm(`"${name}" already has ${UPVC_SERIES[name].length} row(s) — replace them with these ${rows.length} imported rows?`)) return;
+    UPVC_SERIES[name]=rows;
+    kbSet('upvcSeries.'+name, rows);
+    kbPopulateUpvcSeriesSelect();
+    toast(`Imported ${rows.length} rows into "${name}" ✓`,'ok');
+  }else{
+    const ref=kbTableRef(targetKey);
+    ref.push(...rows);
+    kbSet(targetKey, ref);
+    toast(`Added ${rows.length} rows to ${targetKey} ✓`,'ok');
+  }
+  if(S.items.length) revalidateAll();
+  g('kbImportPreviewWrap').innerHTML='';
+}
+
+/* ── Backup / reset ── */
+function kbExportBackup(){
+  const data={
+    windCities:WIND_CITIES, hardwareTiers:QA_CONFIG.hardwareTiers,
+    couplersUpvc:COUPLERS, couplersAlum:ALUM_COUPLERS,
+    alumSliding:ALUM_SLIDING, alumCasement:ALUM_CASEMENT, alumVentilation:ALUM_VENTILATION,
+    material:QA_CONFIG.material, wind:QA_CONFIG.wind, msCeiling:MULLION_MS_CEILING,
+    upvcSeries:UPVC_SERIES, exportedAt:new Date().toISOString(), appVersion:APP_VERSION,
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`ais-qa-knowledge-base-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  toast('Backup downloaded','ok');
+}
+function kbImportBackup(file){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!confirm('This will overwrite ALL current knowledge-base settings in this browser with the backup file. Continue?')) return;
+      applyKBData(data);
+      KB_FLAT_TABLES.forEach(k=>{ if(data[k]) kbSet(k,data[k]); });
+      if(data.material) kbSet('material',data.material);
+      if(data.wind) kbSet('wind',data.wind);
+      if(data.msCeiling) kbSet('msCeiling',data.msCeiling);
+      if(data.upvcSeries) Object.keys(data.upvcSeries).forEach(name=>kbSet('upvcSeries.'+name,data.upvcSeries[name]));
+      toast('Backup restored ✓','ok');
+      if(S.items.length) revalidateAll();
+      closeKB();
+    }catch(err){ toast('Could not read that backup file','err'); }
+  };
+  reader.readAsText(file);
+}
+function kbResetAll(){
+  if(!confirm('Reset ALL knowledge-base settings in this browser back to the built-in defaults? This cannot be undone — export a backup first if unsure.')) return;
+  kbRemoveAll();
+  toast('Reset — reloading…','ok');
+  setTimeout(()=>location.reload(),600);
+}
+
 /* ═══ PWA ════════════════════════════════════════════ */
 function _initPWA(){
   try{
@@ -1154,10 +1907,12 @@ self.addEventListener('message',e=>{if(e.data&&e.data.type==='SKIP_WAITING')self
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();window._pwaPrompt=e;
     const b=g('installBtn');if(b)b.style.display='inline-flex';
+    maybeShowInstallBanner('android');
   });
   window.addEventListener('appinstalled',()=>{
     window._pwaPrompt=null;
     const b=g('installBtn');if(b)b.style.display='none';
+    g('installBanner').classList.remove('show');
     toast('App installed successfully! 🎉','ok');
   });
 }
@@ -1165,8 +1920,41 @@ async function installApp(){
   if(window._pwaPrompt){
     window._pwaPrompt.prompt();
     const{outcome}=await window._pwaPrompt.userChoice;
-    if(outcome==='accepted'){window._pwaPrompt=null;const b=g('installBtn');if(b)b.style.display='none';}
-  }else{toast('Use browser menu → "Add to Home Screen" to install','');}
+    if(outcome==='accepted'){window._pwaPrompt=null;const b=g('installBtn');if(b)b.style.display='none';g('installBanner').classList.remove('show');}
+  }else if(isIOS()){
+    toast('Tap the Share icon, then "Add to Home Screen"','');
+  }else{
+    toast('Use your browser menu → "Add to Home Screen" / "Install App"','');
+  }
+}
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+}
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
+}
+const INSTALL_DISMISS_KEY='aisQaInstallDismissedAt';
+function maybeShowInstallBanner(kind){
+  if(isStandalone()) return; // already installed — never nag
+  const dismissedAt=parseInt(localStorage.getItem(INSTALL_DISMISS_KEY)||'0');
+  if(dismissedAt && (Date.now()-dismissedAt) < 7*24*60*60*1000) return; // dismissed within the last 7 days
+  const txt=g('installBannerTxt');
+  if(kind==='ios'){
+    txt.innerHTML='<b>Install AIS Quote Decoder</b>Tap the Share icon <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px"><path d="M12 2v13M8 6l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>, then "Add to Home Screen".';
+    g('installBannerBtn').style.display='none';
+  }else{
+    g('installBannerBtn').style.display='inline-block';
+  }
+  setTimeout(()=>g('installBanner').classList.add('show'),1200);
+}
+function dismissInstallBanner(){
+  g('installBanner').classList.remove('show');
+  try{localStorage.setItem(INSTALL_DISMISS_KEY,String(Date.now()));}catch(e){}
+}
+function initInstallBanner(){
+  if(isStandalone()) return;
+  if(isIOS()) maybeShowInstallBanner('ios');
+  // Android/desktop Chrome path is triggered by the beforeinstallprompt listener above
 }
 function applyUpdate(){
   S._updating=true;
@@ -2012,7 +2800,12 @@ dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f)handleFile(f);});
 
 /* ═══ INIT ═══════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded',()=>_initPWA(),{once:true});
+document.addEventListener('DOMContentLoaded',()=>{
+  loadKBOverrides();
+  renderCityOptions();
+  _initPWA();
+  initInstallBanner();
+},{once:true});
 </script>
 </body>
 </html>
