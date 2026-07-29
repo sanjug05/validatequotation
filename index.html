@@ -282,7 +282,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 <header class="app-hdr">
   <a class="brand" href="#" onclick="return false">
     <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg></div>
-    <span class="brand-name">AIS <em>Quote</em> Decode</em> &</em> Validate</span>
+    <span class="brand-name">AIS <em>Quote</em> Decoder</span>
   </a>
   <div class="hdr-r">
     <button class="btn btn-ghost btn-icon" id="installBtn" onclick="installApp()" title="Install App"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
@@ -294,7 +294,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 
 <div class="update-bar" id="updateBar"><span>🔄 A new version is available</span><button class="btn-u" onclick="applyUpdate()">Update Now</button><button class="cls" onclick="g('updateBar').classList.remove('show')" aria-label="Dismiss">✕</button></div>
 <section class="hero">
-  <div class="hero-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Quotation Intelligence</div>
+  <div class="hero-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>Channel Partner Intelligence</div>
   <h1 class="hero-title">Decode &amp; Validate Any AIS Windows<br><span class="hl">Quotation Instantly</span></h1>
   <p class="hero-sub">Upload your PI or quotation PDF for a product-by-product breakdown — plus automated technical validation that flags material-feasibility issues, missing mullions/couplers, under-specified hardware, and incomplete data before the quote goes out.</p>
 </section>
@@ -552,9 +552,258 @@ function qaOpeningCategory(windowType){
   return'casement'; // casement, twin sash, doors default to the tighter operable-sash limit
 }
 
-function qaMaterialFeasibility(item){
+/* ═══════════════════════════════════════════════════════════════════
+   REAL AIS PRODUCT LIMITATION DATA — Tier 1, authoritative
+   Source: AIS internal limitation sheets supplied by the user —
+     • uPVC Project Series / Retail (Inventa) / Retail (Prime) size-limit PDFs
+     • Aluminium Sliding / Casement / Ventilation system xlsx (Rev R0, 23/07/2026)
+     • uPVC coupler/mullion reference sheet
+   Best-effort transcription from scanned/exported sheets — spot-check
+   specific figures against the master documents before relying on this
+   for a final structural sign-off. Ranges are written "min-max"; parsed
+   by rng() below. Where a design/tier has no listed value the sheet
+   showed "N/A" — treated as "no data", not as "fails".
+═══════════════════════════════════════════════════════════════════ */
+function rng(s){
+  if(!s || /^\s*n\s*\/?\s*a\s*$/i.test(String(s).trim())) return null;
+  const nums=[...String(s).matchAll(/(\d+(?:\.\d+)?)/g)].map(m=>parseFloat(m[1]));
+  if(!nums.length) return null;
+  return {min:Math.min(...nums), max:Math.max(...nums)};
+}
+function fitsRange(val, rangeStr){
+  const r = rng(rangeStr);
+  if(!r) return null; // unknown — can't confirm either way
+  return val>=r.min && val<=r.max;
+}
+
+const UPVC_SERIES = {
+  'AIS ECO Project Series':[
+    {d:'Fixed Window', w:'400-2000', h:'400-2000', areaMax:4, wt:'0-80', infill:'5-22', depth:'42mm', rem:'Infill capacity limited 5–12mm and 18–22mm'},
+    {d:'Fixed Louvers', w:'400-600', h:'400-1500', depth:'42mm'},
+    {d:'Casement Window (Side Hung)', w:'450-650', h:'450-1500', areaMax:1.7, wt:'0-40', infill:'5-22', depth:'42mm', rem:'Infill capacity limited 5–12mm & 18–22mm; butt hinges required above 22kg sash weight'},
+    {d:'Casement Window (Top Hung)', w:'450-900', h:'450-900', areaMax:1.6, wt:'0-40', infill:'5-22', depth:'42mm', rem:'Infill capacity limited 5–12mm & 18–22mm'},
+    {d:'Sliding Window', w:'450-1000', h:'500-1500', areaMax:1.9, wt:'0-60', infill:'5-12', depth:'52mm'},
+    {d:'Sliding Fixed Shutter (Window)', w:'450-1500', h:'500-1500', areaMax:4, wt:'0-60', infill:'5-12', depth:'52mm'},
+    {d:'Sliding Door', w:'500-1000', h:'1600-2100', areaMax:3.6, wt:'0-90', infill:'5-12', depth:'52mm', rem:'Hurricane bar required above height 1800mm'},
+    {d:'Sliding Fixed Shutter (Door)', w:'500-1350', h:'1600-2100', wt:'0-90', infill:'5-12', depth:'52mm', rem:'Hurricane bar required above height 1800mm'},
+  ],
+  'AIS ECO Retail (Inventa)':[
+    {d:'Fixed Window', w:'400-3000', h:'400-3000', areaMax:7, wt:'0-170', infill:'5-38', depth:'62mm', rem:'One side must be below 2400mm due to glass feasibility'},
+    {d:'Fixed Louvers', w:'400-650', h:'400-2000', depth:'62mm'},
+    {d:'Casement Window (Side Hung)', w:'450-850', h:'450-1800', areaMax:1.7, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Only friction stay & EOD opening-stay provision'},
+    {d:'Casement Window (Top Hung)', w:'450-1000', h:'450-1200', areaMax:1.6, wt:'0-40', infill:'5-38', depth:'62mm', rem:'Only friction stay & EOD opening-stay provision'},
+    {d:'Casement Door', w:'550-1100', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'French Door', w:'1100-2200', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'Sliding Window', w:'450-1200', h:'500-1850', areaMax:1.9, wt:'0-60', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)'},
+    {d:'Sliding Fixed Shutter (Window)', w:'450-1800', h:'500-1850', areaMax:6, wt:'0-60', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)'},
+    {d:'Sliding Door', w:'500-1450', h:'2000-2500', areaMax:3.6, wt:'0-90', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
+    {d:'Sliding Fixed Shutter (Door)', w:'500-2000', h:'2000-2500', wt:'0-90', infill:'5-24', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
+    {d:'Sliding Window (2.5 Track)', w:'450-1050', h:'500-1700', areaMax:2.2, wt:'0-60', infill:'5-24', depth:'93mm'},
+    {d:'Sliding Window (Monorail)', w:'450-1200', h:'500-1800', areaMax:2.3, wt:'0-60', infill:'5-24', depth:'77mm'},
+    {d:'Sliding Door (Monorail)', w:'500-1250', h:'2000-2500', areaMax:3.6, wt:'0-90', infill:'5-24', depth:'77mm', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
+    {d:'Slide & Fold Door', w:'650-850', h:'2000-2400', areaMax:2.16, wt:'0-80', infill:'5-38', depth:'62mm'},
+    {d:'Tilt & Turn Window', w:'500-800', h:'600-1800', areaMax:1.7, wt:'0-45', infill:'5-38', depth:'62mm'},
+    {d:'Arc Windows', w:'900-2500', h:'500-1250', areaMax:3.5, wt:'0-170', infill:'5-38', depth:'62mm', rem:'Min width 900mm & height 500mm; max width 2500mm & height 1250mm'},
+    {d:'Glass To Glass Joint', w:'400-1400', h:'500-2440', areaMax:3, wt:'0-170', infill:'10-38', depth:'62mm', rem:'Consult technical team for larger glass-to-glass joints; max 2440h×1400w per panel; above that use laminated 8+2.28pvb+8mm'},
+  ],
+  'AIS ECO Retail Prime':[
+    {d:'Fixed Window', w:'400-3000', h:'400-3000', areaMax:7, wt:'0-170', infill:'5-38', depth:'62mm', rem:'One side must be below 2400mm due to glass feasibility'},
+    {d:'Fixed Louvers', w:'400-650', h:'400-2000', depth:'62mm'},
+    {d:'Casement Window (Side Hung)', w:'450-850', h:'450-1800', areaMax:1.7, wt:'0-40', infill:'5-38', depth:'62mm', rem:'22kg sash-weight limit — friction stay & hinge provision only'},
+    {d:'Casement Window (Top Hung)', w:'450-1000', h:'450-1200', areaMax:1.6, wt:'0-40', infill:'5-38', depth:'62mm'},
+    {d:'Casement Door', w:'550-1100', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'French Door', w:'1100-2200', h:'2000-2440', areaMax:2.7, wt:'0-100', infill:'5-38', depth:'62mm', rem:'Midrail required for width >1050mm or height >2400mm'},
+    {d:'Sliding Window', w:'450-1200', h:'500-1850', areaMax:1.9, wt:'0-60', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Infill capacity limited 5–14mm and 18–22mm'},
+    {d:'Sliding Fixed Shutter (Window)', w:'450-1800', h:'500-1850', areaMax:6, wt:'0-60', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Infill capacity limited 5–14mm and 18–22mm'},
+    {d:'Sliding Door', w:'500-1450', h:'2000-2700', areaMax:3.6, wt:'0-90', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
+    {d:'Sliding Fixed Shutter (Door)', w:'500-2000', h:'2000-2700', wt:'0-90', infill:'5-22', depth:'62mm (2-track) / 112mm (3-track)', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
+    {d:'Sliding Window (2.5 Track)', w:'450-1050', h:'500-1700', areaMax:2.2, wt:'0-60', infill:'5-22', depth:'93mm', rem:'Infill capacity limited 5–14mm and 18–22mm'},
+    {d:'Sliding Window (Monorail)', w:'450-1200', h:'500-1800', areaMax:2.3, wt:'0-60', infill:'5-22', depth:'77mm', rem:'Infill capacity limited 5–14mm and 18–22mm'},
+    {d:'Sliding Door (Monorail)', w:'500-1250', h:'2000-2500', areaMax:3.6, wt:'0-90', infill:'5-22', depth:'77mm', rem:'Hurricane bar required above height 2400mm or width >1250mm/panel; above 3rd floor, HB required above height 2100mm'},
+    {d:'Arc Windows', w:'900-2500', h:'500-1250', areaMax:3.5, wt:'0-170', infill:'5-38', depth:'62mm', rem:'Min width 900mm & height 500mm; max width 2500mm & height 1250mm'},
+    {d:'Glass To Glass Joint', w:'400-1400', h:'500-2440', areaMax:3, wt:'0-170', infill:'10-38', depth:'62mm', rem:'Consult technical team for larger glass-to-glass joints; max 2440h×1400w per panel; above that use laminated 8+2.28pvb+8mm'},
+    {d:'Twin Sash (Window)', w:'450-800', h:'600-1800', areaMax:1.2, wt:'0-40', infill:'5-36', depth:'112mm'},
+    {d:'HD Patio Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-200', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)'},
+    {d:'Tilt & Slide Door', w:'800-1800', h:'2100-3000', areaMax:6, wt:'0-200', infill:'6-36', depth:'142mm (2-track) / 222mm (3-track)'},
+  ],
+};
+
+/* Aluminium Sliding System — columns identified from the workbook's merged
+   header cells (Brand row 3 / Series-category row 4 / System-detail row 5). */
+const ALUM_SLIDING = [
+  {key:'regalNeo_window', label:'Regal Neo — Window', wReinf:'350-850', wDbl:'350-1200', hReinf:'500-1800 (single/multi-point tiers)', hDbl:'500-1800', maxWt:55, glass:'5-8mm', absMax:'1200×2100 (one-side HB) / 1200×2400 (both-side HB)'},
+  {key:'regalNeo_door', label:'Regal Neo — Door', wReinf:'350-850', wDbl:'350-1200', hReinf:'1800-2100 (multi-point)', hDbl:'1800-2400 (multi-point)', maxWt:65, glass:'5-8mm', absMax:'not separately listed — reference the Window figure'},
+  {key:'regalSelectSLD_window', label:'Regal Select SLD — Window', wBase:'500-1200', wReinf:'500-1250', wDbl:'500-1250', hBase:'500-1800 (single/multi-point tiers)', hReinf:'500-2100 (multi-point above 1500mm)', hDbl:'500-2400 (multi-point above 1500mm)', maxWt:80, glass:'5-30mm', absMax:'1200×1800 (no HB) / 1250×2100 (one-side HB) / 1250×2400 (both-side HB)'},
+  {key:'regalSelectSLD_door', label:'Regal Select SLD — Door', wBase:'600-1400', wReinf:'600-1600', wDbl:'600-1800', hBase:'1800-2400 (multi-point)', hReinf:'1800-3150 (multi-point)', hDbl:'1800-3500 (multi-point)', maxWt:160, glass:'5-30mm', absMax:'1400×2400 (no HB) / 1600×3150 (one-side HB) / 1800×3200 (both-side HB)'},
+  {key:'regalSelectMinimal_window', label:'Regal Select Minimal — Window', wBase:'500-1200', wReinf:'500-1250', wDbl:'500-1250', hBase:'500-1800 (single/multi-point tiers)', hReinf:'500-2100 (multi-point above 1500mm)', hDbl:'500-2400 (multi-point above 1500mm)', maxWt:80, glass:'5-30mm', absMax:'1200×1800 (no HB) / 1250×2100 (one-side HB) / 1250×2400 (both-side HB)'},
+  {key:'regalSelectMinimal_door', label:'Regal Select Minimal — Door', wReinf:'600-1500', wDbl:'600-1800', hReinf:'1800-3150 (multi-point)', hDbl:'1800-3500 (multi-point)', maxWt:160, glass:'5-30mm', absMax:'1400×2400 (no HB) / 1600×3150 (one-side HB) / 1800×3200 (both-side HB)'},
+  {key:'regalSelectMonorail_door', label:'Regal Select Monorail — Door (Minimal)', wReinf:'600-1500 (sliding sash) / 600-2000 (fixed sash)', hReinf:'1800-3150 (multi-point)', maxWt:160, glass:'5-30mm', absMax:'Sliding sash: 1400×2400 (no HB) / 1600×3150 (one-side HB); Fixed: 2000×3150'},
+  {key:'regalSelectIntRail_door', label:'Regal Select Integrated Railing — Door (sld, glass-railing)', wReinf:'600-1600', hReinf:'1800-3150 (multi-point)', maxWt:160, glass:'5-30mm', absMax:'1400×2400 (no HB) / 1600×3150 (one-side HB) / 1800×3200 (both-side HB)', rem:'Glass railing height 1050mm; railing glass thickness 13.52mm'},
+  {key:'regalSelectDefender_door', label:'Regal Select Defender — Door (Minimal)', wReinf:'600-1600', wDbl:'600-1800', hReinf:'1800-3150 (multi-point)', hDbl:'1800-3500 (multi-point)', maxWt:160, glass:'5-30mm', absMax:'1400×2400 (no HB) / 1600×3150 (one-side HB) / 1800×3200 (both-side HB)'},
+  {key:'royalElite_door', label:'Royal Elite — Door', wReinf:'1000-1550', wDbl:'1000-2000', hReinf:'2100-3800 (multi-point only)', hDbl:'2100-3900 (multi-point only)', maxWt:420, glass:'22-38mm', absMax:'1550×3500 (one-side HB) / 2000×3900 (both-side HB)'},
+];
+
+const ALUM_CASEMENT = [
+  {key:'regalNeo_fix', label:'Regal Neo — Fixed Window', w:'400-2000', h:'400-2000', glass:'5-8mm'},
+  {key:'regalNeo_casement', label:'Regal Neo — Casement Window', w:'450-950', h:'450-1350', glass:'5-8mm'},
+  {key:'regalSelect_fix', label:'Regal Select — Fixed Window', w:'350-3500', h:'350-3500', glass:'5-34mm'},
+  {key:'regalSelect_casement', label:'Regal Select — Casement Window', w:'450-1700', h:'450-1850', maxWt:65, glass:'5-34mm'},
+  {key:'regalSelect_door', label:'Regal Select — Door System', w:'550-2100', h:'2000-2700', maxWt:90, glass:'5-34mm', rem:'Water tightness Class E750; wind load Class CE2400; air permeability 600Pa (Class 4)'},
+];
+
+const ALUM_VENTILATION = [
+  {key:'regalNeo_louvreFix', label:'Regal Neo — Fixed Louvre', w:'300-500', h:'300-1500'},
+  {key:'regalNeo_louvreCasement', label:'Regal Neo — Casement Louvre', w:'400-500', h:'400-1350'},
+  {key:'regalSelect_louvreFix', label:'Regal Select — Fixed Louvre', w:'400-600', h:'400-1500'},
+  {key:'regalSelect_movGlassLouvre', label:'Regal Select — Movable Glass Louvre', w:'300-900', h:'600-1800', glass:'6mm annealed'},
+  {key:'regalSelect_movAlumLouvreFix', label:'Regal Select — Movable Aluminium Louvre (Fixed)', w:'300-900', h:'300-3000 (1 knob to 1500mm, 2 knob beyond)'},
+  {key:'regalSelect_movAlumLouvreCasement', label:'Regal Select — Movable Aluminium Louvre (Casement)', w:'450-850', h:'450-1850'},
+];
+
+/* uPVC coupler/mullion reference — best-effort transcription, verify codes before use */
+/* uPVC coupler/mullion reference — corrected against the clearer AIS "UPVC - Couplers"
+   sheet (Coupler Code column included). Length Limit = max span (mm) that coupler covers. */
+const COUPLERS = [
+  {series:'AIS Eco', code:'PA-UO-02', desc:'Coupling small (T coupler)', a:62,b:62,angle:'180°',len:1400},
+  {series:'AIS Eco', code:'PA-UO-03', desc:'Coupling big (Box coupler)', a:62,b:62,angle:'180°',len:2400},
+  {series:'AIS Eco', code:'PAM 113', desc:'Three-track coupler big', a:62,b:62,angle:'180°',len:3000},
+  {series:'AIS Eco', code:'PAM 113', desc:'Three-track coupler big', a:62,b:112,angle:'180°',len:3000},
+  {series:'AIS Eco', code:'PA62-UO-01', desc:'62mm square post', a:62,b:62,angle:'90°',len:2400},
+  {series:'AIS Eco', code:'PA62-UO-01', desc:'62mm square post', a:62,b:112,angle:'90°',len:2400, rem:'Casement needs Door Frame PC62-UF-02'},
+  {series:'AIS Eco', code:'PA-UO-01', desc:'Common bay post', a:62,b:62,angle:'91-179°',len:2400},
+  {series:'AIS Ecoprime', code:'PAUC001', desc:'Coupling small (H coupler)', a:62,b:62,angle:'180°',len:1400},
+  {series:'AIS Ecoprime', code:'PAUC001', desc:'Coupling small (H coupler)', a:42,b:42,angle:'180°',len:1400},
+  {series:'AIS Ecoprime', code:'PAUC001', desc:'Coupling small (H coupler)', a:42,b:52,angle:'180°',len:1400},
+  {series:'AIS Ecoprime', code:'PAUC001', desc:'Coupling small (H coupler)', a:112,b:112,angle:'180°',len:2000},
+  {series:'AIS Ecoprime', code:'PAUC002', desc:'Coupler 16×114mm', a:62,b:112,angle:'180°',len:1800},
+  {series:'AIS Ecoprime', code:'PAUC005', desc:'Coupling big 15×75mm', a:62,b:62,angle:'180°',len:2400},
+  {series:'AIS Ecoprime', code:'AAUC001', desc:'18mm heavy-duty coupler', a:62,b:62,angle:'180°',len:2800},
+  {series:'AIS Ecoprime', code:'AAUC002', desc:'62mm heavy-duty coupler', a:62,b:62,angle:'180°',len:3000},
+  {series:'AIS Ecoprime', code:'AAUC003', desc:'112mm heavy-duty coupler', a:112,b:112,angle:'180°',len:3500},
+  {series:'AIS Ecoprime', code:'PAUC004', desc:'70mm square post', a:62,b:62,angle:'90°',len:2400},
+  {series:'AIS Ecoprime', code:'PAUC004', desc:'70mm square post', a:62,b:112,angle:'90°',len:2400, rem:'Casement needs Door Frame P62F003'},
+  {series:'AIS Ecoprime', code:'PAUC019', desc:'112mm square post', a:112,b:112,angle:'90°',len:3000},
+  {series:'AIS Ecoprime', code:'PAUC007', desc:'Common bay post', a:62,b:62,angle:'91-179°',len:2400},
+];
+
+/* Aluminium coupler reference (AIS Regal) — the source sheet lists no length-limit
+   column; span capability is governed by the 3500mm MS-structure ceiling below unless
+   the technical/D&D team specifies a shorter limit for a particular combination. */
+const ALUM_COUPLERS = [
+  {series:'AIS Regal', code:'ALU-50x50', desc:'Alum-tube', a:45,b:45,angle:'180°',len:null},
+  {series:'AIS Regal', code:'ALU-45x76', desc:'Alum-tube', a:45,b:76,angle:'180°',len:null},
+  {series:'AIS Regal', code:'ALU-75x50', desc:'Alum-tube', a:45,b:75,angle:'180°',len:null},
+  {series:'AIS Regal', code:'GI-50x125', desc:'GI-tube', a:45,b:125,angle:'180°',len:null},
+  {series:'AIS Regal', code:'GI-76x125', desc:'GI-tube', a:76,b:125,angle:'180°',len:null},
+  {series:'AIS Regal', code:'GI-125x125', desc:'GI-tube', a:125,b:125,angle:'180°/90°',len:null},
+  {series:'AIS Regal', code:'COUPLER-15x125', desc:'Coupler 15×125mm', a:45,b:125,angle:'180°',len:null},
+  {series:'AIS Regal', code:'RN-COUPLER-15MM', desc:'RN coupler 15mm', a:30,b:30,angle:'180°',len:null},
+  {series:'AIS Regal', code:'RN-COUPLER-15MM', desc:'RN coupler 15mm', a:30,b:52,angle:'180°',len:null},
+  {series:'AIS Regal', code:'RN-COUPLER-15MM', desc:'RN coupler 15mm', a:30,b:80,angle:'180°',len:null},
+  {series:'AIS Regal', code:'ALU-76x76', desc:'Alum-tube', a:76,b:76,angle:'90°',len:null},
+  {series:'AIS Regal', code:'GI-76x125-90', desc:'GI-tube', a:76,b:125,angle:'90°',len:null},
+];
+
+/* Above this span, AIS requires an MS (mild-steel) support structure — outside the
+   AIS system, client scope. Per the internal "Special Note" on quote validation. */
+const MULLION_MS_CEILING = {upvc:3000, aluminium:3500};
+
+/* Combinations AIS's Order Engineering Team must validate regardless of size — matched
+   best-effort against the item's series/profile/remarks text. False negatives are
+   possible if the parsed text doesn't literally carry these keywords; treat a miss as
+   "not flagged", not as "confirmed clear". */
+const MANDATORY_VALIDATION_RULES = [
+  {test:t=>/monorail/i.test(t), label:'Monorail combination', note:'50×125mm GI tube will be used'},
+  {test:t=>/\baln[\s-]?(70|130)\b/i.test(t), label:'ALN 70/130 combination', note:'Either an MS structure or a 50×125mm GI tube will be used'},
+  {test:t=>/regal select/i.test(t)&&/\b45\b/.test(t)&&/casement/i.test(t)&&/glass/i.test(t)&&/louv/i.test(t), label:'Regal Select 45 Casement + Glass movable louver combination', note:'50×50mm ALUM-TUBE will be used'},
+  {test:t=>/regal select/i.test(t)&&/\b45\b/.test(t)&&/casement/i.test(t)&&/alum/i.test(t)&&/louv/i.test(t), label:'Regal Select 45 Casement + Aluminium movable louver combination', note:'50×75mm ALUM-TUBE will be used'},
+  {test:t=>/regal select/i.test(t)&&/\b45\b/.test(t)&&/casement/i.test(t)&&/regal neo/i.test(t)&&/casement/i.test(t), label:'Regal Select 45 Casement + Regal Neo Casement combination', note:'50×50mm ALUM-TUBE will be used'},
+  {test:t=>/regal select/i.test(t)&&/\b45\b/.test(t)&&/casement/i.test(t)&&/regal neo/i.test(t)&&/slid/i.test(t), label:'Regal Select 45 Casement + Regal Neo Slider combination', note:'To be confirmed with the D&D team'},
+];
+function checkMandatoryValidation(item){
+  const text=[item.designName,item.series,item.profileType,item.remarks,item.meshType,item.track,item.mullion,item.coupler].filter(Boolean).join(' ');
+  return MANDATORY_VALIDATION_RULES.filter(r=>r.test(text));
+}
+
+/* windowType (from the decoder's inferType) → candidate catalog design names / column keys */
+const DESIGN_MAP = {
+  'Fixed':        {upvc:['Fixed Window'], alum:['regalNeo_fix','regalSelect_fix']},
+  'Casement':     {upvc:['Casement Window (Side Hung)','Casement Window (Top Hung)'], alum:['regalNeo_casement','regalSelect_casement']},
+  'Casement Door':{upvc:['Casement Door','French Door'], alum:['regalSelect_door']},
+  'Sliding':      {upvc:['Sliding Window','Sliding Fixed Shutter (Window)','Sliding Window (2.5 Track)','Sliding Window (Monorail)'], alum:['regalNeo_window','regalSelectSLD_window','regalSelectMinimal_window']},
+  'Sliding Door': {upvc:['Sliding Door','Sliding Fixed Shutter (Door)','Sliding Door (Monorail)'], alum:['regalNeo_door','regalSelectSLD_door','regalSelectMinimal_door','regalSelectMonorail_door','regalSelectIntRail_door','regalSelectDefender_door','royalElite_door']},
+  'Tilt & Turn':  {upvc:['Tilt & Turn Window'], alum:[]},
+  'Slide & Fold': {upvc:['Slide & Fold Door'], alum:[]},
+  'Twin Sash':    {upvc:['Twin Sash (Window)'], alum:[]},
+  'Arch Window':  {upvc:['Arc Windows'], alum:[]},
+  'Louvre':       {upvc:['Fixed Louvers'], alum:['regalNeo_louvreFix','regalNeo_louvreCasement','regalSelect_louvreFix','regalSelect_movGlassLouvre','regalSelect_movAlumLouvreFix','regalSelect_movAlumLouvreCasement']},
+  'Door':         {upvc:['Casement Door'], alum:['regalSelect_door']},
+  'Window':       {upvc:['Fixed Window'], alum:['regalNeo_fix','regalSelect_fix']},
+};
+
+function checkUpvcFit(designNames,w,h){
+  const hits=[];
+  for(const seriesName in UPVC_SERIES){
+    for(const row of UPVC_SERIES[seriesName]){
+      if(!designNames.includes(row.d)) continue;
+      if(fitsRange(w,row.w)===true && fitsRange(h,row.h)===true) hits.push({series:seriesName,row});
+    }
+  }
+  return hits;
+}
+function checkAlumFit(colKeys,w,h,dataset){
+  const hits=[];
+  for(const col of dataset){
+    if(!colKeys.includes(col.key)) continue;
+    if(col.wReinf!==undefined || col.wBase!==undefined){
+      const tiers=[['standard',col.wBase,col.hBase],['reinforced',col.wReinf,col.hReinf],['double-reinforced',col.wDbl,col.hDbl]];
+      for(const [tier,wr,hr] of tiers){
+        if(!wr||!hr) continue;
+        if(fitsRange(w,wr)===true && fitsRange(h,hr)===true){ hits.push({col,tier}); break; } // stop at first (lowest) tier that fits
+      }
+    } else if(fitsRange(w,col.w)===true && fitsRange(h,col.h)===true){
+      hits.push({col,tier:'standard'});
+    }
+  }
+  return hits;
+}
+/* Extracts a profile construction depth (mm) from the quoted series/profile-type text,
+   e.g. "AIS ECO 62MM CASEMENT SERIES" → 62. Used to match the coupler whose Side A/B
+   corresponds to this profile's own depth. */
+function extractProfileDepthMm(item){
+  const text=(item.series||'')+' '+(item.profileType||'');
+  const m=text.match(/(\d{2,3})\s*MM/i);
+  return m?parseInt(m[1]):null;
+}
+/* Picks the right coupler(s) for this item: filters by uPVC series (Eco/Ecoprime) or
+   aluminium, narrows to the profile's own construction depth where one can be read off
+   the quote, and — when a required span is given — reports which candidates actually
+   cover it. Returns {isAlum, depth, all, fitting}. */
+function suggestCouplers(item, requiredSpanMm){
+  const isAlum=/alumin/i.test(item.profileMaterial||'');
+  const table = isAlum ? ALUM_COUPLERS : COUPLERS;
+  let candidates = table;
+  if(!isAlum){
+    const s=(item.series||'').toUpperCase();
+    const want = /ECOPRIME/.test(s) ? 'AIS Ecoprime' : (/\bECO\b/.test(s) ? 'AIS Eco' : null);
+    if(want) candidates = candidates.filter(c=>c.series===want);
+  }
+  const depth=extractProfileDepthMm(item);
+  if(depth){
+    const depthMatches=candidates.filter(c=>c.a===depth||c.b===depth);
+    if(depthMatches.length) candidates=depthMatches;
+  }
+  candidates = candidates.slice().sort((x,y)=>(x.len||9999)-(y.len||9999));
+  const fitting = requiredSpanMm ? candidates.filter(c=>c.len==null || c.len>=requiredSpanMm) : candidates;
+  return {isAlum,depth,all:candidates,fitting};
+}
+
+
+/* ── Fallback: generic BPF-style engineering estimate — used only when the
+   design type has no AIS catalog mapping above (e.g. Bay Window, Corner
+   Window, Curtain Wall). Clearly labeled as an estimate, not catalog data. ── */
+function qaMaterialFeasibilityGeneric(item){
   const w=item.width||0,h=item.height||0;
-  if(!w||!h)return null;
   const cat=qaOpeningCategory(item.windowType);
   const maxMember=QA_CONFIG.material.maxMemberLength;
   const sashLimit=QA_CONFIG.material.upvcSashLimits[cat]||QA_CONFIG.material.upvcSashLimits.fixed;
@@ -564,18 +813,106 @@ function qaMaterialFeasibility(item){
   let verdict,reason;
   if(bothOver||Math.max(h,w)>maxMember*2){
     verdict='fail';
-    reason=`Both/larger dimension exceeds ${maxMember}mm by more than double — facade-scale opening. uPVC not practical even with multiple mullions; aluminium/curtain-wall required.`;
+    reason=`No AIS catalog series covers this design type — generic estimate: both/larger dimension exceeds ${maxMember}mm by more than double. uPVC not practical even with multiple mullions; aluminium/curtain-wall required.`;
   }else if(overLength){
     verdict='warn';
-    reason=`${h>maxMember?'Height':'Width'} (${Math.max(w,h)}mm) exceeds the ${maxMember}mm single-member limit for uPVC. Only achievable by dividing with mullions into segments ≤${maxMember}mm — recommend aluminium unless a mullion grid is acceptable.`;
+    reason=`No AIS catalog series covers this design type — generic estimate: ${h>maxMember?'height':'width'} (${Math.max(w,h)}mm) exceeds the ${maxMember}mm single-member limit for uPVC. Recommend aluminium or confirm with the technical team.`;
   }else if(overSashOperable){
     verdict='warn';
-    reason=`As a single ${cat} sash, ${w}×${h}mm exceeds the typical uPVC sash ceiling of ${sashLimit.w}×${sashLimit.h}mm. Needs a mullion split or heavy-duty hardware confirmation.`;
+    reason=`No AIS catalog series covers this design type — generic estimate: ${w}×${h}mm exceeds the typical uPVC sash ceiling of ${sashLimit.w}×${sashLimit.h}mm. Confirm with the technical team.`;
   }else{
     verdict='pass';
-    reason=`${w}×${h}mm is within typical uPVC single-member and sash limits (≤${maxMember}mm member, ≤${sashLimit.w}×${sashLimit.h}mm sash).`;
+    reason=`No AIS catalog series covers this design type — generic estimate: ${w}×${h}mm is within typical uPVC single-member and sash limits. Confirm with the technical team.`;
   }
   return {verdict,reason,needsMullion:verdict!=='pass'};
+}
+
+/* ── Sash-count estimation ──────────────────────────────────────────
+   The catalog limits (uPVC "per sash/shutter", aluminium "sash width/
+   height") are PER INDIVIDUAL PANE, but the quotation line only carries
+   the OVERALL unit width/height and the TOTAL item weight. A 2- or
+   3-sash sliding window quoted as 2400×1500mm is really 2–3 panes of
+   ~800–1200mm width each, not one 2400mm-wide pane — checking the
+   total against a per-sash limit produces false FAILs. This estimates
+   how many sashes/panels the line represents and apportions size and
+   weight accordingly before any catalog or wind-load check runs. ── */
+function estimateSashCount(item){
+  const name=((item.designName||'')+' '+(item.series||'')).trim();
+  // Explicit "NTxNS" style code sometimes present in the design/series name (e.g. "3T3S")
+  const codeM=name.match(/(\d+)\s*T\s*(\d+)\s*S\b/i);
+  if(codeM) return Math.max(1,parseInt(codeM[2]));
+
+  // Highest "S<n>" sash label across handle/lock/hinge fields — catches cases
+  // where only the end sashes have a listed handle (e.g. slide & fold S1..S4)
+  const combined=[item.handleType,item.lockingType,item.handleHeight,item.hinge,item.frictionStay].filter(Boolean).join(' ');
+  const labelNums=[...combined.matchAll(/\bS\s*(\d{1,2})\b/gi)].map(m=>parseInt(m[1])).filter(n=>n>0&&n<=12);
+  const maxLabel=labelNums.length?Math.max(...labelNums):0;
+
+  // Comma-separated entries in locking/handle type — one per operable sash
+  const commaCount=(s)=>s?s.split(',').map(x=>x.trim()).filter(Boolean).length:0;
+  const commaMax=Math.max(commaCount(item.lockingType),commaCount(item.handleType));
+
+  return Math.max(maxLabel,commaMax,1);
+}
+function isVerticalSashSplit(item){
+  return /twin.?sash/i.test((item.windowType||'')+' '+(item.designName||''));
+}
+/* Returns {count, w, h, weight, vertical, rows, cols} — w/h/weight are PER-SASH values.
+   Twin Sash designs pair a top and bottom sash per column (a 2-row grid), so both
+   width and height are apportioned; other multi-sash designs (sliding, slide & fold,
+   multi-leaf casement) are modelled as a single row of side-by-side sashes. */
+function getPerSash(item){
+  const count=estimateSashCount(item);
+  const totalW=item.width||0, totalH=item.height||0;
+  const vertical=isVerticalSashSplit(item);
+  let rows=1, cols=count;
+  if(count>1 && vertical){ rows=2; cols=Math.max(1,Math.round(count/2)); }
+  const w = count>1 ? qaRound(totalW/cols,0) : totalW;
+  const h = count>1 ? qaRound(totalH/rows,0) : totalH;
+  const weight = item.weight>0 ? qaRound(item.weight/count,1) : item.weight;
+  return {count,w,h,weight,vertical,rows,cols};
+}
+
+function sashArrangementText(ps){
+  if(ps.count<=1) return '';
+  return ps.vertical ? `a ${ps.rows}×${ps.cols} grid (${ps.count} sashes)` : `${ps.count} sashes side by side`;
+}
+
+function qaMaterialFeasibility(item){
+  const totalW=item.width||0,totalH=item.height||0;
+  if(!totalW||!totalH) return null;
+  const ps=getPerSash(item);
+  const w=ps.w, h=ps.h;
+  const sashNote=ps.count>1?` (unit is ${totalW}×${totalH}mm overall; treated as ${sashArrangementText(ps)} → ~${w}×${h}mm per sash for this check)`:'';
+  const cat=item.windowType||inferType(item.designName);
+  const map=DESIGN_MAP[cat];
+  if(!map || (!map.upvc.length && !map.alum.length)){
+    return qaMaterialFeasibilityGeneric(item);
+  }
+
+  const upvcHits = checkUpvcFit(map.upvc,w,h);
+  const alumHits = [
+    ...checkAlumFit(map.alum,w,h,ALUM_SLIDING),
+    ...checkAlumFit(map.alum,w,h,ALUM_CASEMENT),
+    ...checkAlumFit(map.alum,w,h,ALUM_VENTILATION),
+  ];
+
+  let verdict,reason;
+  if(upvcHits.length){
+    const best=upvcHits[0];
+    verdict='pass';
+    reason=`Fits ${best.series} — "${best.row.d}" (W ${best.row.w}mm × H ${best.row.h}mm${best.row.wt?`, weight ${best.row.wt}kg`:''})${best.row.rem?`. Note: ${best.row.rem}`:''}.${sashNote}`;
+  }else if(alumHits.length){
+    const best=alumHits[0];
+    verdict='warn';
+    reason=`No uPVC catalog series (Project / Retail Inventa / Retail Prime) fits ~${w}×${h}mm per sash for this design type. Fits ${best.col.label} at the "${best.tier}" tier${best.col.maxWt?`, max weight ${best.col.maxWt}kg`:''}${best.col.rem?`. Note: ${best.col.rem}`:''}. Aluminium required.${sashNote}`;
+  }else if(map.upvc.length||map.alum.length){
+    verdict='fail';
+    reason=`~${w}×${h}mm per sash exceeds every matched catalog series and tier — uPVC and aluminium alike — for this design type. This is beyond standard catalog limits; route to the technical/engineering team for a custom solution or curtain-wall assessment.${sashNote}`;
+  }else{
+    return qaMaterialFeasibilityGeneric(item);
+  }
+  return {verdict,reason,needsMullion:verdict!=='pass',upvcHits,alumHits,perSash:ps};
 }
 
 function qaHardwareTier(weightKg){
@@ -615,7 +952,18 @@ function validateItem(it,site){
     checks.push({cat:'Data completeness',status:'pass',detail:'All core fields present on this line item.'});
   }
 
-  // 2. Material feasibility (size-driven, uPVC vs aluminium)
+  // 2. Sash configuration — informational, always shown so the count driving
+  //    every downstream per-sash calculation is visible and can be sanity-checked
+  if(it.width&&it.height){
+    const psInfo=getPerSash(it);
+    if(psInfo.count>1){
+      checks.push({cat:'Sash configuration',status:'pass',detail:`Detected ${sashArrangementText(psInfo)} from the handle/lock labels — unit ${it.width}×${it.height}mm treated as ~${psInfo.w}×${psInfo.h}mm per sash${it.weight?`, ~${psInfo.weight}kg per sash`:''} for the checks below. If this count looks wrong for this design, treat the flags below with that in mind.`});
+    }else{
+      checks.push({cat:'Sash configuration',status:'pass',detail:`Single sash detected — full unit size and weight used as-is for the checks below.`});
+    }
+  }
+
+  // 3. Material feasibility (size-driven, uPVC vs aluminium)
   const mat=qaMaterialFeasibility(it);
   if(mat){
     const proposedIsUpvc=/upvc|pvc/i.test(it.profileMaterial||'');
@@ -629,45 +977,77 @@ function validateItem(it,site){
     }
   }
 
-  // 3. Mullion / coupler presence for oversized spans
+  // 3b. Combinations AIS requires the Order Engineering Team to sign off on regardless
+  //     of size (Monorail, ALN 70/130, specific Regal Select 45 Casement pairings)
+  const mv=checkMandatoryValidation(it);
+  if(mv.length){
+    checks.push({cat:'Engineering sign-off',status:'warn',detail:`Matches ${mv.length} combination${mv.length>1?'s':''} AIS flags for mandatory Order Engineering Team validation, whatever the size: ${mv.map(r=>`${r.label} (${r.note})`).join('; ')}.`});
+  }
+
+  // 4. Mullion / coupler presence for oversized spans — span checked against the actual
+  //    AIS coupler length limits and the 3000mm (uPVC) / 3500mm (aluminium) MS-structure
+  //    ceiling, not just a generic size cap
   if(mat&&mat.needsMullion){
+    const isAlumMat=/alumin/i.test(it.profileMaterial||mat.recommendedMaterial||'');
+    const ceiling=isAlumMat?MULLION_MS_CEILING.aluminium:MULLION_MS_CEILING.upvc;
+    const requiredSpan=it.height||Math.max(it.width||0,it.height||0);
     const hasCoupler=!!(it.coupler||it.mullion);
-    if(!hasCoupler){
-      checks.push({cat:'Mullion / coupler',status:'fail',detail:`This size exceeds single-member limits, but no coupler or mullion is specified on the quote line — check whether one is required.`});
+    if(requiredSpan>ceiling){
+      checks.push({cat:'Mullion / coupler',status:'fail',detail:`Required span ~${requiredSpan}mm exceeds AIS's standard coupler ceiling of ${ceiling}mm for ${isAlumMat?'aluminium':'uPVC'}. Per the internal validation note, sizes beyond this need an MS (mild-steel) support structure — that's client scope, not part of the AIS system — make sure the quotation/contract calls this out.`});
+    }else if(!hasCoupler){
+      const sugg=suggestCouplers(it,requiredSpan);
+      let suggestTxt;
+      if(sugg.fitting.length){
+        const best=sugg.fitting[0];
+        suggestTxt=` Suggested: ${best.code} (${best.desc}, ${best.a}×${best.b}mm${best.len?`, up to ${best.len}mm`:''})${sugg.depth?` — matched to the ${sugg.depth}mm profile depth on this line`:' — profile depth not detected from the series text, verify manually'}.`;
+      }else if(sugg.all.length){
+        const longest=sugg.all[sugg.all.length-1];
+        suggestTxt=` No listed coupler covers the full ~${requiredSpan}mm span at this profile depth — the longest available is ${longest.code} (up to ${longest.len}mm); consider splitting into shorter segments or escalate to the technical team.`;
+      }else{
+        suggestTxt=' No matching coupler found in the reference table for this series/profile — check with the technical team.';
+      }
+      checks.push({cat:'Mullion / coupler',status:'fail',detail:`This size doesn't fit within any single-member/tier limit, but no coupler or mullion is specified on the quote line.${suggestTxt}`});
     }else{
-      checks.push({cat:'Mullion / coupler',status:'pass',detail:`Coupler/mullion specified (${[it.coupler,it.mullion].filter(Boolean).join('; ')}), consistent with this span.`});
+      checks.push({cat:'Mullion / coupler',status:'pass',detail:`Coupler/mullion specified (${[it.coupler,it.mullion].filter(Boolean).join('; ')}), consistent with this span (~${requiredSpan}mm, within the ${ceiling}mm ${isAlumMat?'aluminium':'uPVC'} ceiling).`});
     }
   }
 
-  // 4. Hardware / locking vs actual weight (uses the PDF's own computed weight, not an estimate)
+  // 5. Hardware / locking vs actual per-sash weight (total item weight ÷ sash count,
+  //    since hardware capacity applies per sash, not to the whole multi-sash unit)
+  const ps4=getPerSash(it);
   if(it.weight>0){
-    const tier=qaHardwareTier(it.weight);
+    const sashWt=ps4.weight;
+    const wtNote=ps4.count>1?` (${it.weight}kg total ÷ ${ps4.count} sashes)`:'';
+    const tier=qaHardwareTier(sashWt);
     const lockText=(it.lockingType||'')+' '+(it.bsLockType||'');
     if(!tier.points){
-      checks.push({cat:'Hardware / locking',status:'fail',detail:`Sash weight ${it.weight}kg exceeds standard uPVC hardware capacity (~${QA_CONFIG.material.upvcSashWeightLimitKg}kg). Confirm heavy-duty hardware with your supplier or reconsider aluminium.`});
+      checks.push({cat:'Hardware / locking',status:'fail',detail:`Per-sash weight ~${sashWt}kg${wtNote} exceeds standard uPVC hardware capacity (~${QA_CONFIG.material.upvcSashWeightLimitKg}kg). Confirm heavy-duty hardware with your supplier or reconsider aluminium.`});
     }else if(isOperable&&!it.lockingType&&!it.bsLockType){
-      checks.push({cat:'Hardware / locking',status:'fail',detail:`No locking mechanism specified for an operable sash weighing ${it.weight}kg.`});
-    }else if(it.weight>60&&!/multi|espag|mvd|cremone/i.test(lockText)){
-      checks.push({cat:'Hardware / locking',status:'warn',detail:`Sash weight ${it.weight}kg — recommended: ${tier.name}. Current spec: "${lockText.trim()||'not specified'}" — confirm it's multi-point.`});
+      checks.push({cat:'Hardware / locking',status:'fail',detail:`No locking mechanism specified for an operable sash weighing ~${sashWt}kg${wtNote}.`});
+    }else if(sashWt>60&&!/multi|espag|mvd|cremone/i.test(lockText)){
+      checks.push({cat:'Hardware / locking',status:'warn',detail:`Per-sash weight ~${sashWt}kg${wtNote} — recommended: ${tier.name}. Current spec: "${lockText.trim()||'not specified'}" — confirm it's multi-point.`});
     }else{
-      checks.push({cat:'Hardware / locking',status:'pass',detail:`${it.weight}kg sash — recommended tier "${tier.name}" — consistent with quoted "${lockText.trim()}".`});
+      checks.push({cat:'Hardware / locking',status:'pass',detail:`~${sashWt}kg per sash${wtNote} — recommended tier "${tier.name}" — consistent with quoted "${lockText.trim()}".`});
     }
   }
 
-  // 5. Wind pressure + glass thickness (only with site data)
+  // 6. Wind pressure + glass thickness (only with site data) — uses per-sash glass area,
+  //    since each pane bears wind load independently, not the whole multi-sash unit
   const wind=qaWindPressure(site);
   if(!wind){
     checks.push({cat:'Wind load / glass spec',status:'warn',detail:'Site & wind data not provided — design wind pressure and glass-thickness adequacy cannot be checked for this item. Fill in the site panel above to enable this check.'});
   }else if(it.width&&it.height){
-    const areaM2=(it.width/1000)*(it.height/1000);
+    const ps5=getPerSash(it);
+    const areaM2=(ps5.w/1000)*(ps5.h/1000);
+    const areaNote=ps5.count>1?` (per sash, from a ${it.width}×${it.height}mm unit treated as ${ps5.count} sashes)`:'';
     const glass=qaGlassPlaceholder(areaM2,wind.pz);
     const quotedMm=qaExtractGlassMm(it.glass);
     if(quotedMm==null){
-      checks.push({cat:'Wind load / glass spec',status:'warn',detail:`Design wind pressure ${wind.pz}Pa (Vz=${wind.vz}m/s). Indicative minimum build-up: ${glass.recommendedMm}mm — could not parse a thickness from the quoted glass text to compare.`});
+      checks.push({cat:'Wind load / glass spec',status:'warn',detail:`Design wind pressure ${wind.pz}Pa (Vz=${wind.vz}m/s). Indicative minimum build-up: ${glass.recommendedMm}mm for a ~${ps5.w}×${ps5.h}mm pane${areaNote} — could not parse a thickness from the quoted glass text to compare.`});
     }else if(quotedMm<glass.recommendedMm){
-      checks.push({cat:'Wind load / glass spec',status:'fail',detail:`Design wind pressure ${wind.pz}Pa. Quoted glass build-up (~${quotedMm}mm) is below the placeholder-recommended ${glass.recommendedMm}mm. This band is illustrative, not a certified chart — re-check against ASTM E1300/IS 16231 or AIS-59 before acting.`});
+      checks.push({cat:'Wind load / glass spec',status:'fail',detail:`Design wind pressure ${wind.pz}Pa on a ~${ps5.w}×${ps5.h}mm pane${areaNote}. Quoted glass build-up (~${quotedMm}mm) is below the placeholder-recommended ${glass.recommendedMm}mm. This band is illustrative, not a certified chart — re-check against ASTM E1300/IS 16231 or AIS-59 before acting.`});
     }else{
-      checks.push({cat:'Wind load / glass spec',status:'pass',detail:`Design wind pressure ${wind.pz}Pa. Quoted glass build-up (~${quotedMm}mm) meets the placeholder-recommended ${glass.recommendedMm}mm. (Placeholder logic — validate against a certified chart.)`});
+      checks.push({cat:'Wind load / glass spec',status:'pass',detail:`Design wind pressure ${wind.pz}Pa on a ~${ps5.w}×${ps5.h}mm pane${areaNote}. Quoted glass build-up (~${quotedMm}mm) meets the placeholder-recommended ${glass.recommendedMm}mm. (Placeholder logic — validate against a certified chart.)`});
     }
   }
 
