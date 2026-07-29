@@ -4,11 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
 <title>AIS Window Quote Decoder + QA</title>
-<link rel="manifest" id="manifestLink">
+<link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#3d6af5">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AIS Decoder">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -674,7 +677,7 @@ if(typeof pdfjsLib!=='undefined')
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ═══ CONSTANTS ══════════════════════════════════════ */
-const APP_VERSION='4.0.0';
+const APP_VERSION='4.1.0';
 const APP_NAME='AIS Window Quote Decoder + QA';
 const IMG_MAP={/* 'DESIGN NAME':'https://...' – internal only */};
 
@@ -1871,38 +1874,20 @@ function kbResetAll(){
 
 /* ═══ PWA ════════════════════════════════════════════ */
 function _initPWA(){
-  try{
-    const icon=`data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="80" fill="#0a0b15"/><rect x="56" y="56" width="400" height="400" rx="16" fill="none" stroke="#3d6af5" stroke-width="28"/><line x1="56" y1="256" x2="456" y2="256" stroke="#3d6af5" stroke-width="18"/><line x1="256" y1="56" x2="256" y2="456" stroke="#3d6af5" stroke-width="18"/><rect x="90" y="90" width="138" height="124" rx="4" fill="#3d6af5" opacity=".25"/><rect x="284" y="298" width="138" height="124" rx="4" fill="#3d6af5" opacity=".2"/></svg>')}`;
-    const mf={name:APP_NAME,short_name:'AIS Decoder',description:'Decode AIS Windows quotation PDFs instantly',start_url:'./',display:'standalone',orientation:'any',background_color:'#08090e',theme_color:'#3d6af5',icons:[{src:icon,sizes:'any',type:'image/svg+xml',purpose:'any maskable'}]};
-    const mBlob=new Blob([JSON.stringify(mf)],{type:'application/json'});
-    const ml=g('manifestLink');if(ml)ml.href=URL.createObjectURL(mBlob);
-  }catch(e){}
+  // Manifest is now a real file (./manifest.json, linked in <head>) with real PNG
+  // icons — blob: URLs for the manifest/service-worker were unreliable for actual
+  // installability checks in Chrome (icon-size and same-origin requirements aren't
+  // consistently satisfied by ephemeral blob URLs). This needs manifest.json, sw.js,
+  // and the icon-*.png files deployed alongside this HTML file, same folder.
   if('serviceWorker' in navigator){
-    const swCode=`'use strict';
-const V='ais-${APP_VERSION}';
-const SKIP=['cdnjs.cloudflare.com','fonts.googleapis.com','fonts.gstatic.com'];
-self.addEventListener('install',()=>self.skipWaiting());
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  const u=new URL(e.request.url);
-  if(SKIP.some(h=>u.hostname.includes(h)))return;
-  if(u.pathname.endsWith('.pdf'))return;
-  e.respondWith(caches.open(V).then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(r2=>{try{c.put(e.request,r2.clone());}catch(_){}return r2;}).catch(()=>r))));
-});
-self.addEventListener('message',e=>{if(e.data&&e.data.type==='SKIP_WAITING')self.skipWaiting();});`;
-    try{
-      const swBlob=new Blob([swCode],{type:'application/javascript'});
-      const swUrl=URL.createObjectURL(swBlob);
-      navigator.serviceWorker.register(swUrl).then(reg=>{
-        reg.addEventListener('updatefound',()=>{
-          const nw=reg.installing;
-          nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller)g('updateBar').classList.add('show');});
-        });
-        setInterval(()=>reg.update(),30*60*1000);
-      }).catch(()=>{});
-      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(S._updating)window.location.reload();});
-    }catch(e){}
+    navigator.serviceWorker.register('./sw.js').then(reg=>{
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller)g('updateBar').classList.add('show');});
+      });
+      setInterval(()=>reg.update(),30*60*1000);
+    }).catch(()=>{ /* sw.js missing or blocked — app still works, just without offline caching / install prompt */ });
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{if(S._updating)window.location.reload();});
   }
   window.addEventListener('beforeinstallprompt',e=>{
     e.preventDefault();window._pwaPrompt=e;
