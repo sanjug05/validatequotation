@@ -875,7 +875,7 @@ const ALUM_SLIDING = [
 const ALUM_CASEMENT = [
   {key:'regalNeo_fix', label:'Regal Neo — Fixed Window', w:'400-2000', h:'400-2000', glass:'5-8mm'},
   {key:'regalNeo_casement', label:'Regal Neo — Casement Window', w:'450-950', h:'450-1350', glass:'5-8mm'},
-  {key:'regalSelect_fix', label:'Regal Select — Fixed Window', w:'350-3500', h:'350-3500', glass:'5-34mm'},
+  {key:'regalSelect_fix', label:'Regal Select — Fixed Window', w:'350-3500', h:'350-3500', maxWt:200, glass:'5-34mm'},
   {key:'regalSelect_casement', label:'Regal Select — Casement Window', w:'450-1700', h:'450-1850', maxWt:65, glass:'5-34mm'},
   {key:'regalSelect_door', label:'Regal Select — Door System', w:'550-2100', h:'2000-2700', maxWt:90, glass:'5-34mm', rem:'Water tightness Class E750; wind load Class CE2400; air permeability 600Pa (Class 4)'},
 ];
@@ -1194,7 +1194,11 @@ function qaMaterialFeasibility(item){
   }else{
     return qaMaterialFeasibilityGeneric(item);
   }
-  return {verdict,reason,needsMullion:verdict!=='pass',upvcHits,alumHits,perSash:ps};
+  // needsMullion must reflect whether the size fits ANY catalog for the material actually
+  // quoted — not just uPVC. An aluminium-only match ('warn', since uPVC doesn't cover it)
+  // still means the size fits its aluminium catalog row as a single member; only a 'fail'
+  // (fits neither catalog) means it's beyond standard limits and needs a coupler/mullion.
+  return {verdict,reason,needsMullion:!(upvcHits.length||alumHits.length),upvcHits,alumHits,perSash:ps};
 }
 
 function qaHardwareTier(weightKg){
@@ -1301,9 +1305,11 @@ function validateItem(it,site){
   }
 
   // 5. Hardware / locking vs actual per-sash weight (total item weight ÷ sash count,
-  //    since hardware capacity applies per sash, not to the whole multi-sash unit)
+  //    since hardware capacity applies per sash, not to the whole multi-sash unit).
+  //    Skipped entirely for non-operable (fixed) sashes — they carry no hardware, so
+  //    a uPVC hardware-capacity ceiling has nothing to check against.
   const ps4=getPerSash(it);
-  if(it.weight>0){
+  if(isOperable&&it.weight>0){
     if(ps4.isComposite){
       checks.push({cat:'Hardware / locking',status:'warn',detail:`Composite "cum" design — the quoted weight (${it.weight}kg) covers all stacked zones combined, not just the operable sash, so a hardware-capacity check here would be misleading. Confirm hardware adequacy manually against the operable sash's actual weight.`});
     }else{
