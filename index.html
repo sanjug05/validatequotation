@@ -875,7 +875,7 @@ const ALUM_SLIDING = [
 const ALUM_CASEMENT = [
   {key:'regalNeo_fix', label:'Regal Neo — Fixed Window', w:'400-2000', h:'400-2000', glass:'5-8mm'},
   {key:'regalNeo_casement', label:'Regal Neo — Casement Window', w:'450-950', h:'450-1350', glass:'5-8mm'},
-  {key:'regalSelect_fix', label:'Regal Select — Fixed Window', w:'350-3500', h:'350-3500', maxWt:200, glass:'5-34mm'},
+  {key:'regalSelect_fix', label:'Regal Select — Fixed Window', w:'350-3600', h:'350-2400', maxWt:250, glass:'5-34mm', rem:'Max weight 250kg with laminated glass'},
   {key:'regalSelect_casement', label:'Regal Select — Casement Window', w:'450-1700', h:'450-1850', maxWt:65, glass:'5-34mm'},
   {key:'regalSelect_door', label:'Regal Select — Door System', w:'550-2100', h:'2000-2700', maxWt:90, glass:'5-34mm', rem:'Water tightness Class E750; wind load Class CE2400; air permeability 600Pa (Class 4)'},
 ];
@@ -1350,6 +1350,25 @@ function validateItem(it,site){
     }else{
       checks.push({cat:'Wind load / glass spec',status:'pass',detail:`Design wind pressure ${wind.pz}Pa on a ~${ps5.w}×${ps5.h}mm pane${areaNote}. Quoted glass build-up (~${quotedMm}mm) meets the placeholder-recommended ${glass.recommendedMm}mm. (Placeholder logic — validate against a certified chart.)`});
     }
+    }
+  }
+
+  // 7. Mesh colour vs. window (profile) colour — the mesh should be ordered in the same
+  //    colour as the frame; a differently-coloured mesh (or one with no colour stated at
+  //    all, when a mesh is present) needs to be caught before it reaches the customer.
+  if(it.mesh==='Yes'){
+    const winColor=(it.profileColor||'').trim();
+    const meshColor=(it.meshColor||'').trim();
+    if(winColor){
+      const norm=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+      const wc=norm(winColor),mc=norm(meshColor);
+      if(!mc){
+        checks.push({cat:'Colour consistency',status:'warn',detail:`Mesh colour not stated on the quote line. The window is ${winColor} — confirm the mesh is ordered in the same colour before finalizing.`});
+      }else if(!wc.includes(mc)&&!mc.includes(wc)){
+        checks.push({cat:'Colour consistency',status:'fail',detail:`Mesh colour "${meshColor}" doesn't match the window's profile colour "${winColor}". Mesh should be the same colour as the frame unless a different colour was deliberately requested.`});
+      }else{
+        checks.push({cat:'Colour consistency',status:'pass',detail:`Mesh colour "${meshColor}" matches the window's profile colour.`});
+      }
     }
   }
 
@@ -2124,6 +2143,7 @@ const _FIELD_MAP={
   'design name':'designName','design ref':'designRef','series':'series',
   'profile type':'profileType','profile colour':'profileColor','profile color':'profileColor',
   'glass type':'glassType','meshtype':'meshType','mesh type':'meshType',
+  'mesh colour':'meshColor','mesh color':'meshColor','flymesh colour':'meshColor','flymesh color':'meshColor',
   'handle type':'handleType','flymesh handle':'flymeshHandle',
   'handle colour':'handleColor','handle color':'handleColor','handle height':'handleHeight',
   'locking type':'lockingType','b/s locking type':'bsLockType','bs locking type':'bsLockType',
@@ -2154,6 +2174,10 @@ function parseZoneB(zoneB){
       const im=kl.match(/^infill\s*([1-4])$/);
       if(im){const f='infill'+im[1];cur[f]=v;lastKey=f;continue;}
       if(kl in _FIELD_MAP){const f=_FIELD_MAP[kl];cur[f]=v;lastKey=f;continue;}
+      // Mesh colour field label isn't standardised across quote templates (seen as
+      // "Mesh Colour", "Mesh Color", "Flymesh Colour", etc.) — catch anything that
+      // mentions both "mesh" and "colour/color" rather than relying on one exact label.
+      if(/mesh/.test(kl)&&/colou?r/.test(kl)){cur.meshColor=v;lastKey='meshColor';continue;}
       if(/\bri$/.test(kl)){lastKey=null;continue;} // RI reference codes — not shown in UI
       lastKey=null;
       continue;
@@ -2225,6 +2249,7 @@ function fallbackFlatDetailParse(lines){
       if(k==='infill'){infillBuf=v;infillOn=true;}
       else if(infillOn){cur.infill=infillBuf.trim();infillOn=false;}
       if(k in _FIELD_MAP)cur[_FIELD_MAP[k]]=v;
+      else if(/mesh/.test(k)&&/colou?r/.test(k))cur.meshColor=v;
     }
   }
   if(cur)items.push(cur);
@@ -2665,7 +2690,7 @@ function openModal(slNo){
         ['Fittings Supplier',it.fittingsSupplier],
       ].filter(([,v])=>v)},
       {title:'Mesh &amp; Accessories',fields:[
-        ['Mesh Type (Detail)',it.meshType],['Coupler',it.coupler],
+        ['Mesh Type (Detail)',it.meshType],['Mesh Colour',it.meshColor],['Coupler',it.coupler],
       ].filter(([,v])=>v)},
       {title:'Structural Members',fields:[
         ['Track',it.track],['Sliding Sash',it.slidingSash],
