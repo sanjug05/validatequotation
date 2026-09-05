@@ -4,7 +4,7 @@
    users get the "update available" prompt. Keep this in sync with APP_VERSION
    inside the main HTML file — they don't have to match exactly, they just both
    need to change together whenever you ship an update. */
-const CACHE_VERSION = 'ais-qa-v4.1.0';
+const CACHE_VERSION = 'ais-qa-v4.2.0';
 const SKIP_HOSTS = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 const APP_SHELL = [

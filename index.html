@@ -56,6 +56,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .brand-mark svg{width:17px;height:17px;stroke:white;stroke-width:2}
 .brand-name{font-size:14px;font-weight:700;color:var(--t1);letter-spacing:-.02em}
 .brand-name em{font-style:normal;color:var(--accent)}
+.ver-badge{font-size:10px;font-weight:600;color:var(--t2);opacity:.6;margin-left:6px;vertical-align:middle;cursor:pointer}
+.ver-badge:hover{opacity:1;text-decoration:underline}
 .hdr-r{display:flex;align-items:center;gap:6px}
 
 /* buttons */
@@ -103,6 +105,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .status-card.loading{background:var(--accent-dim);border-color:rgba(61,106,245,.22);color:var(--accent)}
 .status-card.ok{background:var(--ok-dim);border-color:rgba(31,184,110,.22);color:var(--ok)}
 .status-card.err{background:rgba(224,68,90,.08);border-color:rgba(224,68,90,.2);color:var(--danger)}
+.status-card.warn{background:var(--warn-dim);border-color:rgba(232,160,32,.25);color:var(--warn)}
 .spin{width:15px;height:15px;border-radius:50%;flex-shrink:0;border:2px solid currentColor;border-top-color:transparent;animation:spin .75s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
@@ -284,6 +287,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .kb-pane{display:none}
 .kb-pane.active{display:block}
 .kb-hint{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:14px;background:var(--card);border:1px dashed var(--border);border-radius:8px;padding:10px 12px}
+.kb-changelog-entry{border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:var(--card)}
+.kb-changelog-hd{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:8px}
+.kb-changelog-ver{font-weight:700;font-size:13.5px;color:var(--t1)}
+.kb-changelog-name{font-size:12.5px;color:var(--accent);font-weight:600}
+.kb-changelog-date{font-size:11px;color:var(--t2);margin-left:auto}
+.kb-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;background:var(--ok-dim);color:var(--ok);text-transform:uppercase;letter-spacing:.04em}
+.kb-changelog-list{margin:0;padding-left:18px;font-size:12.5px;color:var(--t2);line-height:1.7}
+.kb-changelog-list li{margin-bottom:4px}
 .kb-series-select{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
 .kb-series-select select{flex:1;min-width:180px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--t1);font-family:inherit;font-size:13px}
 .kb-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:9px}
@@ -347,6 +358,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 /* ── QA chips & banner ── */
 .chip-qa-pass{background:var(--ok-dim);color:var(--ok)}
 .chip-qa-warn{background:var(--warn-dim);color:var(--warn)}
+.chip-lowconf{background:var(--warn-dim);color:var(--warn);border:1px dashed rgba(232,160,32,.4)}
 .chip-qa-fail{background:var(--danger-dim);color:var(--danger)}
 .qa-banner{max-width:1200px;margin:0 auto;padding:0 24px 16px}
 .qa-banner-inner{border-radius:var(--r);padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid}
@@ -380,6 +392,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <a class="brand" href="#" onclick="return false">
     <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="12" y1="3" x2="12" y2="21"/></svg></div>
     <span class="brand-name">AIS <em>Quote</em> Decoder</span>
+    <span class="ver-badge" id="verBadge" onclick="event.preventDefault();event.stopPropagation();openChangelog()" title="Click to see what's new in this version"></span>
   </a>
   <div class="hdr-r">
     <button class="btn btn-ghost btn-icon" id="installBtn" onclick="installApp()" title="Install App"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
@@ -458,6 +471,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 <div class="status-wrap"><div class="status-card" id="statusCard"><div class="spin" id="statusSpin"></div><span id="statusMsg"></span></div></div>
 
 <div class="sum-strip" id="sumStrip">
+  <div class="qmeta-line" id="qMetaLine" style="display:none;font-size:11.5px;color:var(--t2);margin-bottom:10px"></div>
   <div class="sum-inner">
     <div class="sum-stats">
       <div class="s-item"><div class="s-val" id="sItems">0</div><div class="s-lbl">Items</div></div>
@@ -585,8 +599,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         <button onclick="closeKB()" aria-label="Close">✕</button>
       </div>
     </div>
+    <div style="margin:0 20px 14px;padding:10px 14px;background:var(--warn-dim);border:1px solid rgba(232,160,32,.25);border-radius:8px;font-size:12px;color:var(--warn);line-height:1.5">
+      ⚠ Changes here save only to <b>this browser</b> (localStorage) — they are not shared with your team, not synced anywhere, and are lost if this browser's site data is cleared. The 🔒 lock is a soft guard against accidental edits (the email/password check runs entirely in this page's own code, visible to anyone who views source) — it is not real access control. Treat this panel as personal/experimental, not shared administration, until a proper shared settings store is built.
+    </div>
     <div class="kb-tabs" id="kbTabs">
-      <button class="kb-tab active" data-tab="wind" onclick="switchKBTab('wind')">Wind Cities</button>
+      <button class="kb-tab active" data-tab="changelog" onclick="switchKBTab('changelog')">What's New</button>
+      <button class="kb-tab" data-tab="wind" onclick="switchKBTab('wind')">Wind Cities</button>
       <button class="kb-tab" data-tab="material" onclick="switchKBTab('material')">Material Rules</button>
       <button class="kb-tab" data-tab="upvc" onclick="switchKBTab('upvc')">uPVC Sizes</button>
       <button class="kb-tab" data-tab="alum" onclick="switchKBTab('alum')">Aluminium Sizes</button>
@@ -597,7 +615,12 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     </div>
     <div class="kb-body">
 
-      <div class="kb-pane active" data-pane="wind">
+      <div class="kb-pane active" data-pane="changelog">
+        <div class="kb-hint">What shipped in each version — added whenever app content changes, so the team can see exactly what's new and which version they're on (matches the version badge next to the app name).</div>
+        <div id="kbChangelogList"></div>
+      </div>
+
+      <div class="kb-pane" data-pane="wind">
         <div class="kb-hint">Basic wind speed (Vb) per city, used for the design wind pressure calculation. Estimates — verify against IS 875 (Part 3):2015.</div>
         <div id="kbWindTable"></div>
         <button class="kb-add-row" onclick="kbAddRow('windCities')">+ Add city</button>
@@ -671,18 +694,68 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   </div>
 </div>
 
+<!-- Read-only "What's New" — no login required, unlike the Settings modal above which
+     gates EDITABLE thresholds/catalog data. Release notes are for the whole team. -->
+<div class="kb-modal-bg" id="changelogBg" onclick="if(event.target===this)closeChangelog()">
+  <div class="kb-modal" style="max-width:600px;max-height:80vh">
+    <div class="kb-hdr">
+      <h2>What's New</h2>
+      <button onclick="closeChangelog()" aria-label="Close">✕</button>
+    </div>
+    <div class="kb-body" style="padding:4px 20px 20px">
+      <div id="changelogList"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 if(typeof pdfjsLib!=='undefined')
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 /* ═══ CONSTANTS ══════════════════════════════════════ */
-const APP_VERSION='4.1.0';
+const APP_VERSION='4.2.0'; // bump together with sw.js CACHE_VERSION whenever app content changes
 const APP_NAME='AIS Window Quote Decoder + QA';
+
+/* ═══ RELEASE HISTORY ═══════════════════════════════════
+   Add a new entry here — and bump APP_VERSION above + CACHE_VERSION in sw.js — every
+   time app content changes. This is what the team sees under Settings → What's New,
+   so a correction or a new check should ship WITH its own entry describing it, not
+   silently. Newest first. */
+const CHANGELOG=[
+  {
+    version:'4.2.0',
+    name:'Accuracy & Transparency Release',
+    date:'2026-09-06',
+    changes:[
+      'Fix: Regal Select — Fixed Window catalog limit corrected to 3600×2400mm, 250kg (was recorded as 3500×3500mm/200kg).',
+      'Fix: Mullion/coupler check no longer false-fails a size that only matches an aluminium catalog row (no uPVC equivalent) — it only flags when a size fits neither catalog.',
+      'Fix: Hardware/locking check no longer applies the uPVC-only hardware-weight ceiling to fixed (non-operable) sashes.',
+      'Fix: Hardware/locking check no longer applies the uPVC-only weight ceiling to aluminium operable sashes either — reports "capacity not yet confirmed, verify manually" instead of a wrong uPVC-based fail.',
+      'New: Mesh colour vs. window colour consistency check.',
+      'New: Silicon/sealant colour vs. window colour consistency check (warn-level — sealant is ordered from a limited palette, not name-matched to the frame finish).',
+      'New: Glazing capacity check — quoted glass build-up vs. the matched catalog row\'s own glazing/rebate capacity.',
+      'New: Material vs. series-name mismatch check (e.g. uPVC quoted against an aluminium Regal/Royal series, or the reverse).',
+      'New: Qty × Rate = Amount arithmetic check, with a stated rounding tolerance.',
+      'New: Duplicate line-item detection across a quotation.',
+      'New: Quote No./Quote Date surfaced in the summary bar (informational only — no validity period is checked).',
+      'New: Parse-confidence badge on low-confidence items, plus an average shown in the summary bar.',
+      'New: Scanned/image-only PDF detection with a clear explanation (no OCR).',
+      'New: Visible app version badge, and this changelog.',
+      'Docs: Settings panel now states plainly that changes save to this browser only and the lock isn\'t real access control.',
+    ]
+  },
+  {
+    version:'4.1.0 and earlier',
+    name:null,
+    date:null,
+    changes:['No changelog was kept before the 4.2.0 release — this list starts here going forward.']
+  }
+];
 const IMG_MAP={/* 'DESIGN NAME':'https://...' – internal only */};
 
 /* ═══ STATE ══════════════════════════════════════════ */
-const S={items:[],filtered:[],current:null,speaking:false,speakBtn:null,pdfDoc:null,previewMode:'svg',toastActive:new Set(),siteData:{vb:null,terrain:2,heightM:null},_kbWorking:{},_kbImport:null};
+const S={items:[],filtered:[],current:null,speaking:false,speakBtn:null,pdfDoc:null,previewMode:'svg',toastActive:new Set(),siteData:{vb:null,terrain:2,heightM:null},_kbWorking:{},_kbImport:null,quoteMeta:null};
 
 /* Editable via Settings → Wind Cities. Vb estimates — verify against IS 875 (Part 3):2015. */
 const WIND_CITIES=[
@@ -720,6 +793,24 @@ function normMoney(s){return parseFloat(String(s||0).replace(/[,₹\s]/g,''))||0
 function normDim(v){const n=parseFloat(v);return(n>0&&n<30000)?Math.round(n):0;}
 function normMesh(raw){if(!raw)return'No';return/^\s*no\s*$|^\s*none\s*$|^\s*n\/a\s*$/i.test(raw.trim())?'No':'Yes';}
 function normMaterial(s){if(!s)return'';return/alumin/i.test(s)?'Aluminium':/upvc|pvc/i.test(s)?'uPVC':'';}
+function normColourText(s){return(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();}
+function coloursMatch(a,b){if(!a||!b)return false;return a.includes(b)||b.includes(a);}
+/* Series NAME → material family the AIS product-line naming convention already implies
+   elsewhere in this file (see the alum:[] vs upvc:[] split in DESIGN_MAP and the catalog
+   key prefixes: regalNeo_/regalSelect_/royalElite_/aln are aluminium lines; "AIS ECO",
+   "ECOPRIME" and "ECO INVENTA" are the uPVC lines). Only classifies when the series text
+   is an unambiguous, high-confidence match to one of these known families — anything
+   else returns null (no verdict) rather than guessing, to avoid false mismatches on
+   series names this convention doesn't cover. */
+function seriesImpliedMaterial(series){
+  const s=(series||'');
+  if(!s.trim())return null;
+  const alumHit=/regal\s*select|regal\s*neo|royal\s*elite|\baln[\s-]?\d+\b/i.test(s);
+  const upvcHit=/\bais\s+eco\b|ecoprime|eco\s*inventa/i.test(s);
+  if(alumHit&&!upvcHit)return'Aluminium';
+  if(upvcHit&&!alumHit)return'uPVC';
+  return null; // ambiguous, unrecognised, or mentions both — don't guess
+}
 function cleanLine(s){return s.replace(/\s+/g,' ').trim();}
 
 /* ═══════════════════════════════════════════════════════
@@ -733,6 +824,12 @@ function cleanLine(s){return s.replace(/\s+/g,' ').trim();}
    coupler, mullion, etc.) rather than re-estimating them.
 ═══════════════════════════════════════════════════════ */
 const QA_CONFIG = {
+  // qty*rate vs amount rounding tolerance — a chosen default (not an AIS figure), since
+  // quotes may legitimately round to the nearest rupee or carry a small line-level
+  // adjustment. Whichever is larger of a flat ₹2 or 0.5% of the amount is allowed before
+  // this is flagged; edit here if AIS standardises on a different tolerance.
+  arithmeticToleranceInr: 2,
+  arithmeticTolerancePct: 0.005,
   wind: {
     k1: 1.0, k3: 1.0, k4: 1.0, // VERIFY per IS 875 Pt.3 Table 1 / topography / cyclonic zone
     terrainAlpha: {1:0.10, 2:0.14, 3:0.22, 4:0.30} // power-law approx of IS875 Table 2 k2(h) — VERIFY for critical projects
@@ -940,7 +1037,15 @@ const MULLION_MS_CEILING = {upvc:3000, aluminium:3500};
 /* Combinations AIS's Order Engineering Team must validate regardless of size — matched
    best-effort against the item's series/profile/remarks text. False negatives are
    possible if the parsed text doesn't literally carry these keywords; treat a miss as
-   "not flagged", not as "confirmed clear". */
+   "not flagged", not as "confirmed clear".
+   AUDIT NOTE (local-audit-improvements branch): this list is known-incomplete. It
+   reflects only the combinations already confirmed at the time this file was written;
+   it is NOT a transcription of AIS's full Order Engineering sign-off policy. No new
+   rules were added in this pass because no additional AIS-confirmed combination list
+   was available — adding rules from assumption would risk both false "not flagged"
+   (real combinations still missing) and false "flagged" (an invented rule matching
+   something that was never actually required). BLOCKED pending the Order Engineering
+   Team's full, authoritative combination list. */
 const MANDATORY_VALIDATION_RULES = [
   {test:t=>/monorail/i.test(t), label:'Monorail combination', note:'50×125mm GI tube will be used'},
   {test:t=>/\baln[\s-]?(70|130)\b/i.test(t), label:'ALN 70/130 combination', note:'Either an MS structure or a 50×125mm GI tube will be used'},
@@ -1205,6 +1310,35 @@ function qaHardwareTier(weightKg){
   return QA_CONFIG.hardwareTiers.find(t=>weightKg<=t.maxKg);
 }
 
+/* ── Duplicate line-item detection (cross-item — run once over the whole quotation,
+   not inside validateItem which only sees one item at a time). Flags lines that share
+   design name + size + material + colour + glass — a strong signal of an accidental
+   copy-paste duplicate, but not proof: the same design can legitimately be quoted twice
+   for different rooms. Always a warn, never a fail, and qty is deliberately excluded
+   from the signature (repeating the same line for tracking purposes, rather than just
+   bumping qty, is a judgement call for the reviewer, not a hard error). ── */
+function duplicateSignature(it){
+  const norm=s=>(s||'').toString().trim().toLowerCase().replace(/\s+/g,' ');
+  return [norm(it.designName),it.width||0,it.height||0,norm(it.profileMaterial),norm(it.profileColor),norm(it.glass)].join('|');
+}
+function detectDuplicateGroups(items){
+  const bySig=new Map();
+  items.forEach(it=>{
+    if(!it.designName||!it.width||!it.height)return; // too little data to compare meaningfully
+    const sig=duplicateSignature(it);
+    if(!bySig.has(sig))bySig.set(sig,[]);
+    bySig.get(sig).push(it);
+  });
+  const dupSlNosByItem=new Map();
+  for(const group of bySig.values()){
+    if(group.length<2)continue;
+    group.forEach(it=>{
+      dupSlNosByItem.set(it,group.filter(o=>o!==it).map(o=>o.slNo));
+    });
+  }
+  return dupSlNosByItem;
+}
+
 /* Placeholder glass-thickness band — NOT a digitized ASTM E1300/IS 16231 chart. */
 function qaGlassPlaceholder(areaM2,pressurePa){
   const loadIndex=areaM2*(pressurePa/1000);
@@ -1238,6 +1372,20 @@ function validateItem(it,site){
     checks.push({cat:'Data completeness',status:'pass',detail:'All core fields present on this line item.'});
   }
 
+  // 1b. qty × rate vs. amount — pure arithmetic, not a pricing-policy check. A mismatch is
+  //     shown as a warn (not fail): it just as often means a deliberate discount/adjustment
+  //     as a typo, so this asks for confirmation rather than asserting an error.
+  if(it.qty&&it.rate&&it.amount){
+    const expected=it.qty*it.rate;
+    const tolerance=Math.max(QA_CONFIG.arithmeticToleranceInr,Math.abs(it.amount)*QA_CONFIG.arithmeticTolerancePct);
+    const diff=Math.abs(expected-it.amount);
+    if(diff>tolerance){
+      checks.push({cat:'Arithmetic',status:'warn',detail:`Qty × Rate = ${it.qty} × ₹${it.rate.toLocaleString('en-IN')} = ₹${expected.toLocaleString('en-IN')}, but the quoted amount is ₹${it.amount.toLocaleString('en-IN')} (difference ₹${qaRound(diff,2)}). Confirm this is a deliberate discount/adjustment rather than a data-entry error.`});
+    }else{
+      checks.push({cat:'Arithmetic',status:'pass',detail:`Qty × Rate matches the quoted amount (within a ₹${QA_CONFIG.arithmeticToleranceInr}/${QA_CONFIG.arithmeticTolerancePct*100}% tolerance).`});
+    }
+  }
+
   // 2. Sash configuration — informational, always shown so the count driving
   //    every downstream per-sash calculation is visible and can be sanity-checked
   if(it.width&&it.height){
@@ -1269,11 +1417,69 @@ function validateItem(it,site){
     }
   }
 
+  // 3a. Glazing / rebate capacity — does the quoted glass build-up fit the glazing
+  //     capacity of the SPECIFIC catalog row/column matched above? Catalog data carries
+  //     this as `infill` (uPVC rows) or `glass` (aluminium columns). This is independent
+  //     of the wind-load thickness check further down (section 6), which is a structural
+  //     adequacy estimate — this one is "does the glass physically fit the rebate at all".
+  //     Only a clean, unambiguous outside-the-range case is a fail; anything the catalog
+  //     itself flags as having internal gaps (e.g. "limited to 5–12mm and 18–22mm") is a
+  //     warn, since a single min/max range can't represent an excluded middle band.
+  if(mat&&((mat.upvcHits&&mat.upvcHits.length)||(mat.alumHits&&mat.alumHits.length))){
+    const bestU=mat.upvcHits&&mat.upvcHits.length?mat.upvcHits[0]:null;
+    const bestA=!bestU&&mat.alumHits&&mat.alumHits.length?mat.alumHits[0]:null;
+    const capacityStr=bestU?bestU.row.infill:(bestA?bestA.col.glass:null);
+    const capacityLabel=bestU?bestU.row.d:(bestA?bestA.col.label:'');
+    const capNote=bestU?bestU.row.rem:(bestA?bestA.col.rem:'');
+    // Deliberately narrow: only the literal "infill capacity limited" remark pattern
+    // (verified against every `rem` in the catalog) — NOT a bare "glass"/"infill" mention,
+    // which also appears in unrelated remarks (jumbo-glass width limits, glass-to-glass
+    // joint notes, glass-railing thickness) and would otherwise downgrade a clean pass.
+    const capGapNote=(capNote&&/infill\s*capacity\s*limited/i.test(capNote))?capNote:null;
+    const cap=capacityStr?rng(capacityStr):null;
+    // qaExtractGlassMm sums every "Nmm" number in the glass text. For a simple pane spec
+    // ("5mm toughened") that's correct. For a compound DGU description ("5MM CTG + 14mm
+    // Silver Spacer + 18mm White Georgian Bar + Argon Gap + 5MM CTG") it isn't — spacer/
+    // bar/gap dimensions aren't glass thickness, so blind summation over-counts. That was
+    // harmless for the pre-existing wind-load check (an inflated number could only cause
+    // a false PASS there); here it would cause a false FAIL, so treat it as unparseable
+    // instead of trusting the sum whenever those non-glass dimensions are present in text.
+    const compoundBuildupHint=/spacer|argon|georgian|gap\b/i.test(it.glass||'');
+    const quotedMm=compoundBuildupHint?null:qaExtractGlassMm(it.glass);
+    if(cap){
+      if(quotedMm==null){
+        checks.push({cat:'Glazing capacity',status:'warn',detail:`Could not confidently read a single glass thickness from the quoted glass text${compoundBuildupHint?' (a compound DGU build-up with spacer/bar/gap dimensions mixed in — summing every "mm" number in it isn\'t reliable)':''} to compare against ${capacityLabel}'s glazing capacity (${capacityStr}mm).`});
+      }else if(quotedMm<cap.min||quotedMm>cap.max){
+        checks.push({cat:'Glazing capacity',status:'fail',detail:`Quoted glass build-up (~${quotedMm}mm) is outside ${capacityLabel}'s glazing capacity (${capacityStr}mm).`});
+      }else if(capGapNote){
+        checks.push({cat:'Glazing capacity',status:'warn',detail:`Quoted glass build-up (~${quotedMm}mm) is within ${capacityLabel}'s overall glazing capacity (${capacityStr}mm), but the catalog notes: "${capGapNote}" — the usable range may have a gap within that band; confirm manually.`});
+      }else{
+        checks.push({cat:'Glazing capacity',status:'pass',detail:`Quoted glass build-up (~${quotedMm}mm) fits ${capacityLabel}'s glazing capacity (${capacityStr}mm).`});
+      }
+    }
+  }
+
   // 3b. Combinations AIS requires the Order Engineering Team to sign off on regardless
   //     of size (Monorail, ALN 70/130, specific Regal Select 45 Casement pairings)
   const mv=checkMandatoryValidation(it);
   if(mv.length){
     checks.push({cat:'Engineering sign-off',status:'warn',detail:`Matches ${mv.length} combination${mv.length>1?'s':''} AIS flags for mandatory Order Engineering Team validation, whatever the size: ${mv.map(r=>`${r.label} (${r.note})`).join('; ')}.`});
+  }
+
+  // 3c. Profile material vs. series naming convention — e.g. a line quoted as uPVC whose
+  //     series text names an aluminium line (Regal/Royal Elite/ALN) or vice versa. Only
+  //     fires on an unambiguous series-name match (see seriesImpliedMaterial); anything
+  //     it doesn't recognise is silently skipped rather than guessed at.
+  const impliedMat=seriesImpliedMaterial(it.series);
+  if(impliedMat&&it.profileMaterial){
+    const quotedIsAlum=/alumin/i.test(it.profileMaterial);
+    const quotedIsUpvc=/upvc|pvc/i.test(it.profileMaterial);
+    const impliedIsAlum=impliedMat==='Aluminium';
+    if((impliedIsAlum&&quotedIsUpvc)||(!impliedIsAlum&&quotedIsAlum)){
+      checks.push({cat:'Material / series match',status:'fail',detail:`Quoted material is ${it.profileMaterial}, but the series "${it.series}" is an AIS ${impliedMat} product line. Confirm whether the material or the series text is the mistake.`});
+    }else if(quotedIsAlum||quotedIsUpvc){
+      checks.push({cat:'Material / series match',status:'pass',detail:`Quoted material (${it.profileMaterial}) is consistent with the ${impliedMat} series "${it.series}".`});
+    }
   }
 
   // 4. Mullion / coupler presence for oversized spans — span checked against the actual
@@ -1307,7 +1513,11 @@ function validateItem(it,site){
   // 5. Hardware / locking vs actual per-sash weight (total item weight ÷ sash count,
   //    since hardware capacity applies per sash, not to the whole multi-sash unit).
   //    Skipped entirely for non-operable (fixed) sashes — they carry no hardware, so
-  //    a uPVC hardware-capacity ceiling has nothing to check against.
+  //    a hardware-capacity ceiling has nothing to check against.
+  //    IMPORTANT: QA_CONFIG.material.upvcSashWeightLimitKg is a uPVC-specific figure
+  //    (its own name says so). Aluminium operable sashes must NOT be checked against it —
+  //    AIS hasn't provided a confirmed aluminium hardware-capacity figure for this tool,
+  //    so that branch reports "blocked pending data" instead of inventing a number.
   const ps4=getPerSash(it);
   if(isOperable&&it.weight>0){
     if(ps4.isComposite){
@@ -1315,16 +1525,25 @@ function validateItem(it,site){
     }else{
     const sashWt=ps4.weight;
     const wtNote=ps4.count>1?` (${it.weight}kg total ÷ ${ps4.count} sashes)`:'';
-    const tier=qaHardwareTier(sashWt);
     const lockText=(it.lockingType||'')+' '+(it.bsLockType||'');
+    const isAlumMaterial=/alumin/i.test(it.profileMaterial||'');
+    if(isAlumMaterial){
+      if(!it.lockingType&&!it.bsLockType){
+        checks.push({cat:'Hardware / locking',status:'fail',detail:`No locking mechanism specified for an operable sash weighing ~${sashWt}kg${wtNote}.`});
+      }else{
+        checks.push({cat:'Hardware / locking',status:'warn',detail:`~${sashWt}kg per sash${wtNote}, quoted hardware: "${lockText.trim()}". BLOCKED: this tool has no AIS-confirmed aluminium hardware-capacity figure to check against (the only weight ceiling configured is uPVC-specific) — verify capacity manually with the hardware supplier until that data is provided.`});
+      }
+    }else{
+    const tier=qaHardwareTier(sashWt);
     if(!tier.points){
       checks.push({cat:'Hardware / locking',status:'fail',detail:`Per-sash weight ~${sashWt}kg${wtNote} exceeds standard uPVC hardware capacity (~${QA_CONFIG.material.upvcSashWeightLimitKg}kg). Confirm heavy-duty hardware with your supplier or reconsider aluminium.`});
-    }else if(isOperable&&!it.lockingType&&!it.bsLockType){
+    }else if(!it.lockingType&&!it.bsLockType){
       checks.push({cat:'Hardware / locking',status:'fail',detail:`No locking mechanism specified for an operable sash weighing ~${sashWt}kg${wtNote}.`});
     }else if(sashWt>60&&!/multi|espag|mvd|cremone/i.test(lockText)){
       checks.push({cat:'Hardware / locking',status:'warn',detail:`Per-sash weight ~${sashWt}kg${wtNote} — recommended: ${tier.name}. Current spec: "${lockText.trim()||'not specified'}" — confirm it's multi-point.`});
     }else{
       checks.push({cat:'Hardware / locking',status:'pass',detail:`~${sashWt}kg per sash${wtNote} — recommended tier "${tier.name}" — consistent with quoted "${lockText.trim()}".`});
+    }
     }
     }
   }
@@ -1360,14 +1579,41 @@ function validateItem(it,site){
     const winColor=(it.profileColor||'').trim();
     const meshColor=(it.meshColor||'').trim();
     if(winColor){
-      const norm=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-      const wc=norm(winColor),mc=norm(meshColor);
+      const wc=normColourText(winColor),mc=normColourText(meshColor);
       if(!mc){
         checks.push({cat:'Colour consistency',status:'warn',detail:`Mesh colour not stated on the quote line. The window is ${winColor} — confirm the mesh is ordered in the same colour before finalizing.`});
-      }else if(!wc.includes(mc)&&!mc.includes(wc)){
+      }else if(!coloursMatch(wc,mc)){
         checks.push({cat:'Colour consistency',status:'fail',detail:`Mesh colour "${meshColor}" doesn't match the window's profile colour "${winColor}". Mesh should be the same colour as the frame unless a different colour was deliberately requested.`});
       }else{
         checks.push({cat:'Colour consistency',status:'pass',detail:`Mesh colour "${meshColor}" matches the window's profile colour.`});
+      }
+    }
+  }
+
+  // 7b. Sealant/silicon colour vs. window (profile) colour.
+  //     IMPORTANT DIFFERENCE FROM THE MESH CHECK ABOVE: testing this against the real
+  //     bundled demo data (which mirrors real AIS quote patterns) showed WALNUT, GOLDEN
+  //     OAK and MAHOGANY frames all legitimately quoted with BROWN silicon — i.e. sealant
+  //     is ordered from a small fixed palette (Black/White/Brown/Grey...), not a name-for-
+  //     name match to the (much larger) set of frame finish names. An exact-text-match
+  //     "fail" would therefore false-fail on normal, correct quotes. Since which finish
+  //     maps to which sealant-palette colour is a real business rule this tool doesn't
+  //     have confirmed AIS data for, a text mismatch here is only ever a 'warn' asking
+  //     for manual confirmation — never a 'fail'. (This same false-fail pattern likely
+  //     also applies to the mesh-colour check above once real "Mesh Colour" data starts
+  //     being captured — left untouched here since preserving that logic was required,
+  //     see the audit summary's risk list.)
+  {
+    const winColor=(it.profileColor||'').trim();
+    const siliconColor=(it.silicon||'').trim();
+    if(winColor){
+      const wc=normColourText(winColor),sc=normColourText(siliconColor);
+      if(!sc){
+        checks.push({cat:'Colour consistency',status:'warn',detail:`Silicon/sealant colour not stated on the quote line. The window is ${winColor} — confirm the sealant colour before finalizing.`});
+      }else if(!coloursMatch(wc,sc)){
+        checks.push({cat:'Colour consistency',status:'warn',detail:`Silicon/sealant colour "${siliconColor}" doesn't textually match the window's profile colour "${winColor}". This is often correct as-is (sealant is typically ordered from a limited colour palette, not name-matched to the frame finish) — confirm it's the intended pairing rather than a data-entry error.`});
+      }else{
+        checks.push({cat:'Colour consistency',status:'pass',detail:`Silicon/sealant colour "${siliconColor}" matches the window's profile colour.`});
       }
     }
   }
@@ -1656,20 +1902,40 @@ function openKB(){
 function openKBUnlocked(){
   S._kbWorking={};
   kbPopulateUpvcSeriesSelect();
-  switchKBTab('wind');
+  switchKBTab('changelog');
   g('kbModalBg').classList.add('show');
 }
 function closeKB(){ g('kbModalBg').classList.remove('show'); }
 function switchKBTab(tab){
   document.querySelectorAll('.kb-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.kb-pane').forEach(p=>p.classList.toggle('active', p.dataset.pane===tab));
-  if(tab==='wind') kbRenderTable('windCities');
+  if(tab==='changelog') kbRenderChangelog('kbChangelogList');
+  else if(tab==='wind') kbRenderTable('windCities');
   else if(tab==='material') kbRenderMaterialForm();
   else if(tab==='upvc') kbRenderUpvcSeries();
   else if(tab==='alum') kbRenderAlum();
   else if(tab==='couplers'){ kbRenderTable('couplersUpvc'); kbRenderTable('couplersAlum'); }
   else if(tab==='hardware') kbRenderTable('hardwareTiers');
 }
+function kbRenderChangelog(targetId){
+  const el=g(targetId||'kbChangelogList');
+  el.innerHTML=CHANGELOG.map((v,i)=>`
+    <div class="kb-changelog-entry">
+      <div class="kb-changelog-hd">
+        <span class="kb-changelog-ver">v${esc(v.version)}</span>
+        ${v.name?`<span class="kb-changelog-name">${esc(v.name)}</span>`:''}
+        ${i===0?'<span class="kb-badge">current</span>':''}
+        ${v.date?`<span class="kb-changelog-date">${esc(v.date)}</span>`:''}
+      </div>
+      <ul class="kb-changelog-list">${v.changes.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+    </div>`).join('');
+}
+/* Read-only "What's New" — deliberately NOT behind the Settings login. The KB lock
+   protects EDITABLE thresholds/catalog data; release notes are for the whole team to
+   read, so gating them behind an admin password would defeat the point of keeping them
+   at all. Same content also appears inside Settings → What's New for anyone already in there. */
+function openChangelog(){ kbRenderChangelog('changelogList'); g('changelogBg').classList.add('show'); }
+function closeChangelog(){ g('changelogBg').classList.remove('show'); }
 function kbSaveActivePane(){
   const activeEl=document.querySelector('.kb-tab.active');
   const active=activeEl?activeEl.dataset.tab:'';
@@ -1998,6 +2264,7 @@ async function extractPDF(file){
   S.pdfDoc=pdf;
 
   let globalFull='';
+  let totalTextChars=0; // for scanned/image-PDF detection — see below
   const zoneA=[],zoneB=[],zoneC=[]; // each: {page, text}
 
   const groupByY=(arr)=>{
@@ -2019,6 +2286,7 @@ async function extractPDF(file){
     const page=await pdf.getPage(p);
     const content=await page.getTextContent();
     const raw=content.items.map(it=>({str:it.str||'',x:it.transform[4],y:it.transform[5]})).filter(it=>it.str.trim());
+    totalTextChars+=raw.reduce((n,it)=>n+it.str.trim().length,0);
 
     // ---- global stream (page 3 summary, design remarks) ----
     groupByY(raw).forEach(t=>{globalFull+=t+'\n';});
@@ -2076,7 +2344,36 @@ async function extractPDF(file){
     groupByY(b).forEach(t=>zoneB.push({page:p,text:t}));
     groupByY(c).forEach(t=>zoneC.push({page:p,text:t}));
   }
-  return{globalFull,zoneA,zoneB,zoneC};
+  return{globalFull,zoneA,zoneB,zoneC,numPages:pdf.numPages,avgTextCharsPerPage:pdf.numPages?totalTextChars/pdf.numPages:0};
+}
+
+/* Below this, a PDF page is treated as having no meaningful embedded text layer — i.e.
+   likely a scanned image rather than a text-based PDF. This tool has no OCR (a client-
+   side OCR library like Tesseract.js could run without a server, but is a meaningful
+   scope/size/accuracy/testing addition on its own — deliberately left out of this pass
+   rather than bolted on without proper testing). Threshold is a judgement call, not an
+   AIS figure: a genuine AIS detail page carries a few hundred characters at minimum. */
+const SCANNED_PDF_CHAR_THRESHOLD=40;
+function isLikelyScannedPdf(avgTextCharsPerPage){return avgTextCharsPerPage<SCANNED_PDF_CHAR_THRESHOLD;}
+
+/* Per-item parse confidence (_conf, computed in buildDetailItems/finalizeItem — see
+   "40" and the *20+20 formula there) below this is shown as a warning to the user. A
+   chosen UI threshold, not derived from any accuracy measurement against real quotes —
+   _conf itself is a rough proxy (how many of a few key fields were found), not a
+   calibrated accuracy score. */
+const PARSE_CONFIDENCE_LOW_THRESHOLD=60;
+
+/* Document-level "Quote No"/"Quote Date" extraction — informational only. These lines
+   are deliberately stripped as noise inside the per-item zone parser (_NOISE_RE below),
+   so nothing currently captures them; this reads the raw global text stream instead.
+   NOTE: no expiry/validity check is implemented — no AIS-confirmed validity period for
+   a quotation exists in this tool, so this only surfaces the date for a human to check,
+   it never asserts pass/fail/warn based on it. */
+function extractQuoteMeta(globalFull){
+  const text=globalFull||'';
+  const dateM=text.match(/quote\s*date\s*:?\s*([0-3]?\d[-\/][01]?\d[-\/]\d{2,4})/i);
+  const noM=text.match(/quote\s*(?:no|code)\.?\s*:?\s*([A-Za-z0-9\-\/]+)/i);
+  return{quoteDate:dateM?dateM[1]:null,quoteNo:noM?noM[1]:null};
 }
 
 /* ═══ PARSER ══════════════════════════════════════════ */
@@ -2640,10 +2937,11 @@ function cardHTML(it){
   const bens=benefits(it).slice(0,3);
   const qa=it._qa;
   const qaChip=qa?(qa.status==='pass'?`<span class="chip chip-qa-pass">✓ QA Pass</span>`:qa.status==='fail'?`<span class="chip chip-qa-fail">⚠ ${qa.checks.filter(c=>c.status!=='pass').length} Flag${qa.checks.filter(c=>c.status!=='pass').length>1?'s':''}</span>`:`<span class="chip chip-qa-warn">${qa.checks.filter(c=>c.status!=='pass').length} Check${qa.checks.filter(c=>c.status!=='pass').length>1?'s':''}</span>`):'';
+  const lowConfChip=(it._conf!=null&&it._conf<PARSE_CONFIDENCE_LOW_THRESHOLD)?`<span class="chip chip-lowconf" title="Fewer than half the key fields were confidently matched during PDF parsing">⚠ Low parse confidence (${it._conf}%)</span>`:'';
   return`<div class="item-card ${barCls}" onclick="openModal(${it.slNo})">
 <div class="c-head"><div class="c-num">${it.slNo}</div><div class="c-head-r">
 <div class="c-title">${esc(it.designName||it.designRef||'Window Item')}</div>
-<div class="c-chips"><span class="chip ${pmCls}">${esc(pm)}</span>${it.windowType?`<span class="chip chip-type">${esc(it.windowType)}</span>`:''}${it.profileColor?`<span class="chip chip-type" style="opacity:.75">${esc(it.profileColor)}</span>`:''}${it.mesh==='Yes'?'<span class="chip chip-mesh">Mesh ✓</span>':''}${qaChip}</div></div></div>
+<div class="c-chips"><span class="chip ${pmCls}">${esc(pm)}</span>${it.windowType?`<span class="chip chip-type">${esc(it.windowType)}</span>`:''}${it.profileColor?`<span class="chip chip-type" style="opacity:.75">${esc(it.profileColor)}</span>`:''}${it.mesh==='Yes'?'<span class="chip chip-mesh">Mesh ✓</span>':''}${qaChip}${lowConfChip}</div></div></div>
 <div class="c-dims"><span class="c-dim-v">${dims} mm</span>${area?`<span class="c-sep">·</span><span>${area}</span>`:''}${wt?`<span class="c-sep">·</span><span>${wt}</span>`:''}</div>
 <div class="c-glass"><span class="c-glass-ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><polyline points="17 2 12 7 7 2"/></svg></span><span>${esc(gl60)}</span></div>
 ${bens.length?`<div class="c-benefits">${bens.map(b=>`<span class="btag">${b.ic} ${esc(b.t)}</span>`).join('')}</div>`:''}
@@ -2743,6 +3041,23 @@ function updateSummary(items){
   if(upvcCnt)mix.innerHTML+=`<span class="chip chip-upvc">${upvcCnt} uPVC</span>`;
   if(alumCnt)mix.innerHTML+=`<span class="chip chip-alum">${alumCnt} Alum</span>`;
   show('sumStrip');show('filtersBar');g('cardsSection').style.display='block';g('emptyInit').style.display='none';
+
+  // Quote metadata (date/no) — informational only, no validity/expiry check (see
+  // extractQuoteMeta). Parse-confidence summary — see PARSE_CONFIDENCE_LOW_THRESHOLD.
+  const metaParts=[];
+  if(S.quoteMeta&&(S.quoteMeta.quoteDate||S.quoteMeta.quoteNo)){
+    if(S.quoteMeta.quoteNo)metaParts.push(`Quote No: ${esc(S.quoteMeta.quoteNo)}`);
+    if(S.quoteMeta.quoteDate)metaParts.push(`Quote Date: ${esc(S.quoteMeta.quoteDate)} (validity not checked — no confirmed AIS validity period configured)`);
+  }
+  const confItems=items.filter(i=>i._conf!=null);
+  const lowConf=confItems.filter(i=>i._conf<PARSE_CONFIDENCE_LOW_THRESHOLD);
+  if(confItems.length){
+    const avgConf=Math.round(confItems.reduce((s,i)=>s+i._conf,0)/confItems.length);
+    metaParts.push(`Parse confidence: ${avgConf}% avg${lowConf.length?` — <span style="color:var(--warn)">${lowConf.length} item${lowConf.length>1?'s':''} low-confidence, verify against the original PDF</span>`:''}`);
+  }
+  const metaEl=g('qMetaLine');
+  if(metaParts.length){metaEl.innerHTML=metaParts.join(' &nbsp;·&nbsp; ');metaEl.style.display='block';}
+  else{metaEl.style.display='none';}
 }
 
 /* ═══ LOAD FLOW ══════════════════════════════════════ */
@@ -2751,8 +3066,13 @@ async function handleFile(file){
   setStatus('loading',`Reading "${file.name}"…`);
   try{
     const extracted=await extractPDF(file);
+    if(isLikelyScannedPdf(extracted.avgTextCharsPerPage)){
+      setStatus('warn',`This PDF has almost no extractable text (~${Math.round(extracted.avgTextCharsPerPage)} characters/page across ${extracted.numPages} page${extracted.numPages===1?'':'s'}) — it looks like a scanned image rather than a text-based PDF. This tool can't run OCR, so automatic parsing isn't possible here. Please provide a text-based PDF, or enter the line items manually.`);
+      return;
+    }
     setStatus('loading','Parsing quotation line items…');
     const items=parseQuotation(extracted);
+    S.quoteMeta=extractQuoteMeta(extracted.globalFull);
     if(!items.length){setStatus('err','No line items found. Please ensure this is an AIS Windows PI or quotation PDF.');return;}
     const partial=items.filter(i=>!i.designName||!(i.width>0)).length;
     // Diagnostic dump — visible in console (F12) for debugging
@@ -2767,10 +3087,18 @@ async function handleFile(file){
 function loadItems(items){
   readSiteData();
   items.forEach(it=>{it._qa=validateItem(it,S.siteData);});
+  // Duplicate detection needs the full item list, so it runs as a second pass here
+  // rather than inside validateItem (which only ever sees one item at a time).
+  const dupMap=detectDuplicateGroups(items);
+  dupMap.forEach((otherSlNos,it)=>{
+    it._qa.checks.push({cat:'Duplicate line',status:'warn',detail:`This line's design, size, material, colour and glass all match item${otherSlNos.length>1?'s':''} #${otherSlNos.join(', #')}. Confirm this isn't an accidental copy-paste duplicate (legitimate if intentionally quoted twice, e.g. for separate rooms).`});
+    if(it._qa.status==='pass')it._qa.status='warn';
+  });
   S.items=items;S.filtered=[...items];updateSummary(items);applyFilters();renderQABanner();
 }
 function loadDemo(){
   S.pdfDoc=null;
+  S.quoteMeta=null; // demo data has no PDF-extracted quote date/no — don't show a stale one from a prior upload
   const items=DEMO.map(d=>{const c=Object.assign({},d);try{finalizeItem(c);}catch(e){}return c;});
   loadItems(items);setStatus('ok',`✓ Demo quotation loaded – ${items.length} items.`);
 }
@@ -2821,6 +3149,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderCityOptions();
   _initPWA();
   initInstallBanner();
+  const vb=g('verBadge');if(vb)vb.textContent='v'+APP_VERSION;
 },{once:true});
 </script>
 </body>

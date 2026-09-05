@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AIS Quote Decoder — Local Test Suite</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0b0e14;color:#e6e8ee;margin:0;padding:24px;font-size:14px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:#9aa2b1;margin:0 0 20px;font-size:13px}
+  #summary{padding:12px 16px;border-radius:8px;margin-bottom:18px;font-weight:600;font-size:15px}
+  #summary.pass{background:rgba(31,184,110,.12);color:#1fb86e;border:1px solid rgba(31,184,110,.3)}
+  #summary.fail{background:rgba(224,68,90,.12);color:#e0445a;border:1px solid rgba(224,68,90,.3)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid #262b38;vertical-align:top}
+  th{color:#9aa2b1;font-weight:600;position:sticky;top:0;background:#0b0e14}
+  tr.pass td.status{color:#1fb86e}
+  tr.fail td.status{color:#e0445a;font-weight:700}
+  td.status{white-space:nowrap;font-weight:600}
+  td.detail{color:#c5cad6}
+  td.group{color:#7c8899;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  iframe{display:none}
+  code{background:#1a1e29;padding:1px 5px;border-radius:4px}
+  #rerun{background:#3d6af5;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;margin-bottom:16px}
+</style>
+</head>
+<body>
+<h1>AIS Quote Decoder — Local Test Suite</h1>
+<p class="sub">Loads the real <code>../index.html</code> in a hidden iframe and calls its actual functions — no logic is duplicated here. Run via the local server, e.g. <code>http://localhost:PORT/tests/index.html</code>.</p>
+<button id="rerun" onclick="location.reload()">Re-run all tests</button>
+<div id="summary">Loading app…</div>
+<table>
+  <thead><tr><th style="width:110px">Group</th><th style="width:260px">Test</th><th style="width:70px">Result</th><th>Detail</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<iframe id="app" src="../index.html"></iframe>
+
+<script>
+const results=[];
+function T(group,name,fn){
+  let pass,detail;
+  try{
+    const r=fn();
+    pass=!!r.pass;
+    detail=r.detail||'';
+  }catch(e){
+    pass=false;
+    detail='THREW: '+(e&&e.message||e);
+  }
+  results.push({group,name,pass,detail});
+}
+function eq(actual,expected,label){
+  return {pass:actual===expected,detail:`${label||''} expected <code>${JSON.stringify(expected)}</code>, got <code>${JSON.stringify(actual)}</code>`};
+}
+function ok(cond,detail){return {pass:!!cond,detail:detail||''};}
+
+function render(){
+  const passCount=results.filter(r=>r.pass).length;
+  const failCount=results.length-passCount;
+  const sum=document.getElementById('summary');
+  sum.className=failCount===0?'pass':'fail';
+  sum.textContent=`${passCount}/${results.length} passed` + (failCount?` — ${failCount} FAILED`:' — all green');
+  const rows=document.getElementById('rows');
+  rows.innerHTML=results.map(r=>`<tr class="${r.pass?'pass':'fail'}"><td class="group">${r.group}</td><td>${r.name}</td><td class="status">${r.pass?'PASS':'FAIL'}</td><td class="detail">${r.detail}</td></tr>`).join('');
+}
+
+window.addEventListener('load',()=>{
+  const iframe=document.getElementById('app');
+  const run=()=>{
+    const w=iframe.contentWindow;
+    if(!w||typeof w.validateItem!=='function'){
+      document.getElementById('summary').className='fail';
+      document.getElementById('summary').textContent='Could not access app functions inside the iframe — app failed to load or a script error occurred.';
+      return;
+    }
+    // IMPORTANT: index.html declares its data (S, QA_CONFIG, APP_VERSION, ALUM_*, DEMO,
+    // the numeric threshold constants, etc.) with top-level `const`/`let`. Those create
+    // bindings in the script's own lexical scope but — unlike `var` or function
+    // declarations — are NOT attached to `window`, so `iframe.contentWindow.S` etc. would
+    // read as undefined from out here. Function declarations (validateItem, rng, ...) DO
+    // attach to window and are read directly. For everything else, a script injected INTO
+    // the iframe's own document runs in its lexical scope and can read those bindings by
+    // plain identifier, then explicitly assign them onto window — that assignment is what
+    // makes them reachable from this outer page afterwards.
+    const collector=iframe.contentDocument.createElement('script');
+    collector.textContent=`window.__TEST_EXPORTS__={S,QA_CONFIG,APP_VERSION,ALUM_SLIDING,ALUM_CASEMENT,ALUM_VENTILATION,DEMO,PARSE_CONFIDENCE_LOW_THRESHOLD,SCANNED_PDF_CHAR_THRESHOLD,CHANGELOG};`;
+    iframe.contentDocument.body.appendChild(collector);
+    if(!w.__TEST_EXPORTS__){
+      document.getElementById('summary').className='fail';
+      document.getElementById('summary').textContent='Collector script failed to run inside the iframe — cannot read app constants.';
+      return;
+    }
+    runAllTests(w,w.__TEST_EXPORTS__);
+    render();
+  };
+  // give the app's own DOMContentLoaded/init a moment to finish
+  setTimeout(run,300);
+});
+
+function runAllTests(w,X){
+  const V=w.validateItem, MF=w.qaMaterialFeasibility, PZB=w.parseZoneB, FIN=w.finalizeItem,
+        DDG=w.detectDuplicateGroups, EQM=w.extractQuoteMeta, ISPDF=w.isLikelyScannedPdf,
+        RNG=w.rng, SIM=w.seriesImpliedMaterial, LOADITEMS=w.loadItems, LOADDEMO=w.loadDemo,
+        S=X.S, DEMO=X.DEMO, APP_VERSION=X.APP_VERSION, ALUM_SLIDING=X.ALUM_SLIDING,
+        ALUM_CASEMENT=X.ALUM_CASEMENT, ALUM_VENTILATION=X.ALUM_VENTILATION,
+        PARSE_CONFIDENCE_LOW_THRESHOLD=X.PARSE_CONFIDENCE_LOW_THRESHOLD, CHANGELOG=X.CHANGELOG;
+
+  const findCat=(checks,cat)=>checks.find(c=>c.cat===cat);
+  const findCatWhere=(checks,cat,re)=>checks.find(c=>c.cat===cat&&re.test(c.detail));
+
+  /* ══════════ 1. Glazing capacity (new) ══════════ */
+  T('Glazing','fail: glass thickness outside catalog infill range',()=>{
+    const it={designName:'FIXED WINDOW',windowType:'Fixed',profileMaterial:'uPVC',width:1000,height:1000,glass:'40mm toughened',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Glazing capacity');
+    return ok(c&&c.status==='fail',JSON.stringify(c));
+  });
+  T('Glazing','warn: glass within outer range but catalog notes an internal gap',()=>{
+    const it={designName:'FIXED WINDOW',windowType:'Fixed',profileMaterial:'uPVC',width:1000,height:1000,glass:'10mm toughened',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Glazing capacity');
+    return ok(c&&c.status==='warn'&&/gap/i.test(c.detail),JSON.stringify(c));
+  });
+  T('Glazing','pass: glass within range, no gap note on the matched row',()=>{
+    const it={designName:'FIXED WINDOW',windowType:'Fixed',profileMaterial:'uPVC',width:2500,height:2500,glass:'10mm toughened',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Glazing capacity');
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Glazing','warn (missing data): unparseable glass text',()=>{
+    const it={designName:'FIXED WINDOW',windowType:'Fixed',profileMaterial:'uPVC',width:1000,height:1000,glass:'clear toughened glass',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Glazing capacity');
+    return ok(c&&c.status==='warn',JSON.stringify(c));
+  });
+  T('Glazing','regression guard: compound DGU spec (spacer/georgian bar) does not false-FAIL',()=>{
+    const it={designName:'CASEMENT DOOR',windowType:'Casement Door',profileMaterial:'uPVC',width:900,height:2250,
+      glass:'(1) AIS DGU - 5MM CTG + 14mm (Silver Spacer + 18mm White Georgian Bar + Argon Gap) + 5MM CTG',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Glazing capacity');
+    return ok(c&&c.status!=='fail',JSON.stringify(c));
+  });
+
+  /* ══════════ 2. Material vs series-name mismatch (new) ══════════ */
+  T('Material/Series','fail: uPVC quoted against an aluminium (Regal) series',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'uPVC',series:'AIS Regal Select 45mm Casement Series',width:900,height:1200,glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Material / series match');
+    return ok(c&&c.status==='fail',JSON.stringify(c));
+  });
+  T('Material/Series','pass: aluminium quoted against a Regal Select series',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'Aluminium',series:'AIS Regal Select 45mm Casement Series',width:900,height:1200,glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Material / series match');
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Material/Series','pass: uPVC quoted against an AIS ECO series',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'uPVC',series:'AIS ECO 62MM CASEMENT SERIES',width:900,height:1200,glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Material / series match');
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Material/Series','missing/ambiguous data: unrecognised series name is skipped, not guessed',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'uPVC',series:'Some Unknown Series XYZ',width:900,height:1200,glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Material / series match');
+    return ok(c===undefined,'expected no check pushed, got '+JSON.stringify(c));
+  });
+  T('Material/Series','helper: seriesImpliedMaterial classifies known families only',()=>{
+    return ok(SIM('AIS Royal Elite Door')==='Aluminium' && SIM('AIS ECOPRIME 62MM SLIDING SERIES')==='uPVC' && SIM('Totally unknown text')===null,
+      `Royal=${SIM('AIS Royal Elite Door')}, Ecoprime=${SIM('AIS ECOPRIME 62MM SLIDING SERIES')}, unknown=${SIM('Totally unknown text')}`);
+  });
+
+  /* ══════════ 3. Arithmetic: qty*rate=amount (new) ══════════ */
+  T('Arithmetic','warn: qty*rate does not match amount beyond tolerance',()=>{
+    const it={designName:'X',width:900,height:1200,qty:2,rate:1000,amount:2500,profileMaterial:'uPVC',glass:'5mm',windowType:'Fixed'};
+    const c=findCat(V(it,null).checks,'Arithmetic');
+    return ok(c&&c.status==='warn',JSON.stringify(c));
+  });
+  T('Arithmetic','pass: qty*rate matches amount exactly',()=>{
+    const it={designName:'X',width:900,height:1200,qty:2,rate:1000,amount:2000,profileMaterial:'uPVC',glass:'5mm',windowType:'Fixed'};
+    const c=findCat(V(it,null).checks,'Arithmetic');
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Arithmetic','pass: small rounding difference within stated tolerance',()=>{
+    const it={designName:'X',width:900,height:1200,qty:3,rate:333.33,amount:1000,profileMaterial:'uPVC',glass:'5mm',windowType:'Fixed'};
+    const c=findCat(V(it,null).checks,'Arithmetic');
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Arithmetic','missing data: no check when rate/amount absent',()=>{
+    const it={designName:'X',width:900,height:1200,qty:2,profileMaterial:'uPVC',glass:'5mm',windowType:'Fixed'};
+    const c=findCat(V(it,null).checks,'Arithmetic');
+    return ok(c===undefined,'expected no check, got '+JSON.stringify(c));
+  });
+
+  /* ══════════ 4. Aluminium operable-sash hardware — blocked, not invented (new) ══════════ */
+  T('Hardware(Alum)','warn/BLOCKED: heavy aluminium operable sash with hardware quoted — no invented limit asserted',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'Aluminium',width:1200,height:1500,weight:200,lockingType:'Multi Point Lock',glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Hardware / locking');
+    return ok(c&&c.status==='warn'&&/BLOCKED/.test(c.detail)&&!/uPVC hardware capacity/.test(c.detail),JSON.stringify(c));
+  });
+  T('Hardware(Alum)','fail: aluminium operable sash with NO locking mechanism at all',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'Aluminium',width:1200,height:1500,weight:80,glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Hardware / locking');
+    return ok(c&&c.status==='fail'&&/No locking mechanism/.test(c.detail),JSON.stringify(c));
+  });
+  T('Hardware(uPVC) REGRESSION','fail: heavy uPVC sash still checked against the uPVC 130kg ceiling',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'uPVC',width:1200,height:1500,weight:200,lockingType:'Multi Point Lock',glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Hardware / locking');
+    return ok(c&&c.status==='fail'&&/uPVC hardware capacity/.test(c.detail),JSON.stringify(c));
+  });
+  T('Hardware(uPVC) REGRESSION','pass: normal uPVC sash with proper multi-point lock',()=>{
+    const it={designName:'CASEMENT',windowType:'Casement',profileMaterial:'uPVC',width:1200,height:1500,weight:45,lockingType:'Multi Point Lock',glass:'5mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Hardware / locking');
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Hardware REGRESSION','fixed (non-operable) sash still skips the hardware check entirely, any material',()=>{
+    const it={designName:'fixed laminated',windowType:'Fixed',profileMaterial:'Aluminium',width:2800,height:2000,weight:157,glass:'6mm',mesh:'No'};
+    const c=findCat(V(it,null).checks,'Hardware / locking');
+    return ok(c===undefined,'expected no check, got '+JSON.stringify(c));
+  });
+
+  /* ══════════ 5. Silicon/sealant colour (new) ══════════ */
+  T('Colour(Silicon)','pass: silicon colour matches profile colour',()=>{
+    const it={designName:'X',windowType:'Fixed',profileMaterial:'uPVC',width:900,height:1200,profileColor:'BROWN',silicon:'BROWN',glass:'5mm',mesh:'No'};
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Ss]ilicon/);
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Colour(Silicon)','warn (not fail): silicon colour text differs from profile colour',()=>{
+    const it={designName:'X',windowType:'Fixed',profileMaterial:'uPVC',width:900,height:1200,profileColor:'BROWN',silicon:'WHITE',glass:'5mm',mesh:'No'};
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Ss]ilicon/);
+    return ok(c&&c.status==='warn','MUST be warn not fail (limited sealant palette vs frame finish names) — got: '+JSON.stringify(c));
+  });
+  T('Colour(Silicon)','warn: silicon colour not stated at all',()=>{
+    const it={designName:'X',windowType:'Fixed',profileMaterial:'uPVC',width:900,height:1200,profileColor:'BROWN',glass:'5mm',mesh:'No'};
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Ss]ilicon/);
+    return ok(c&&c.status==='warn',JSON.stringify(c));
+  });
+  T('Colour(Silicon)','real-data false-fail guard: WALNUT frame + BROWN silicon (from bundled demo pattern) must NOT fail',()=>{
+    const it={designName:'X',windowType:'Casement',profileMaterial:'uPVC',width:900,height:1200,profileColor:'WALNUT',silicon:'BROWN',glass:'5mm',mesh:'No'};
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Ss]ilicon/);
+    return ok(c&&c.status!=='fail',JSON.stringify(c));
+  });
+
+  /* ══════════ 6. Mesh colour REGRESSION (must be byte-for-byte unchanged behaviour) ══════════ */
+  T('Colour(Mesh) REGRESSION','fail: mesh colour explicitly mismatched',()=>{
+    const zoneB=[{page:1,text:'Design Name : SLIDER WINDOW'},{page:1,text:'Mesh Type : (5) AIS-FIBRE MESH'},{page:1,text:'Mesh Colour : WHITE'},{page:1,text:'Profile Colour : BROWN'}];
+    const it=Object.assign({},PZB(zoneB)[0],{mesh:'Yes',width:1200,height:1500});
+    FIN(it);
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Mm]esh colour/);
+    return ok(c&&c.status==='fail',JSON.stringify(c));
+  });
+  T('Colour(Mesh) REGRESSION','pass: mesh colour matches',()=>{
+    const zoneB=[{page:1,text:'Design Name : SLIDER WINDOW'},{page:1,text:'Mesh Type : (5) AIS-FIBRE MESH'},{page:1,text:'Mesh Colour : WHITE'},{page:1,text:'Profile Colour : WHITE'}];
+    const it=Object.assign({},PZB(zoneB)[0],{mesh:'Yes',width:1200,height:1500});
+    FIN(it);
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Mm]esh colour/);
+    return ok(c&&c.status==='pass',JSON.stringify(c));
+  });
+  T('Colour(Mesh) REGRESSION','warn: mesh colour not stated when mesh present',()=>{
+    const it={designName:'X',windowType:'Fixed',profileMaterial:'uPVC',width:900,height:1200,profileColor:'WHITE',mesh:'Yes',glass:'5mm'};
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Mm]esh colour/);
+    return ok(c&&c.status==='warn',JSON.stringify(c));
+  });
+  T('Colour(Mesh) REGRESSION','no check when mesh is No',()=>{
+    const it={designName:'X',windowType:'Fixed',profileMaterial:'uPVC',width:900,height:1200,profileColor:'WHITE',mesh:'No',glass:'5mm'};
+    const c=findCatWhere(V(it,null).checks,'Colour consistency',/[Mm]esh colour/);
+    return ok(c===undefined,'expected no check, got '+JSON.stringify(c));
+  });
+  T('Field parsing REGRESSION','mesh-colour label detection stays flexible (regex-based) and does not swallow Handle Colour',()=>{
+    const zoneB=[{page:1,text:'Design Name : CASEMENT'},{page:1,text:'Handle Colour : BLACK'},{page:1,text:'Profile Colour : WHITE'}];
+    const b=PZB(zoneB)[0];
+    return ok(b.handleColor==='BLACK'&&b.profileColor==='WHITE'&&!b.meshColor,JSON.stringify(b));
+  });
+
+  /* ══════════ 7. Duplicate line-item detection (new) ══════════ */
+  T('Duplicates','flags two identical lines (design+size+material+colour+glass) as a pair',()=>{
+    const items=[
+      {slNo:1,designName:'Fixed Window',windowType:'Fixed',profileMaterial:'uPVC',profileColor:'WHITE',width:1000,height:1000,glass:'5mm',mesh:'No'},
+      {slNo:2,designName:'Fixed Window',windowType:'Fixed',profileMaterial:'uPVC',profileColor:'WHITE',width:1000,height:1000,glass:'5mm',mesh:'No'},
+      {slNo:3,designName:'Casement',windowType:'Casement',profileMaterial:'uPVC',profileColor:'BROWN',width:900,height:1200,glass:'5mm',mesh:'No'},
+    ];
+    const map=DDG(items);
+    return ok(map.size===2 && map.get(items[0]).includes(2) && map.get(items[1]).includes(1) && !map.has(items[2]),
+      `map.size=${map.size}`);
+  });
+  T('Duplicates','different colour is NOT treated as a duplicate',()=>{
+    const items=[
+      {slNo:1,designName:'Fixed Window',windowType:'Fixed',profileMaterial:'uPVC',profileColor:'WHITE',width:1000,height:1000,glass:'5mm',mesh:'No'},
+      {slNo:2,designName:'Fixed Window',windowType:'Fixed',profileMaterial:'uPVC',profileColor:'BROWN',width:1000,height:1000,glass:'5mm',mesh:'No'},
+    ];
+    const map=DDG(items);
+    return ok(map.size===0,`map.size=${map.size}`);
+  });
+  T('Duplicates','end-to-end via loadItems: duplicate check appears in _qa and status escalates from pass',()=>{
+    const items=[
+      {slNo:1,designName:'Fixed Window',windowType:'Fixed',profileMaterial:'uPVC',profileColor:'WHITE',width:1000,height:1000,glass:'5mm',mesh:'No',qty:1,rate:100,amount:100},
+      {slNo:2,designName:'Fixed Window',windowType:'Fixed',profileMaterial:'uPVC',profileColor:'WHITE',width:1000,height:1000,glass:'5mm',mesh:'No',qty:1,rate:100,amount:100},
+    ];
+    LOADITEMS(items);
+    const c=findCat(items[0]._qa.checks,'Duplicate line');
+    return ok(c&&c.status==='warn'&&items[0]._qa.status==='warn',JSON.stringify({c,status:items[0]._qa.status}));
+  });
+
+  /* ══════════ 8. Quote date/meta extraction (new, informational only) ══════════ */
+  T('Quote meta','extracts Quote No / Quote Date from raw text',()=>{
+    const m=EQM('Some header\nQuote No : QT-1234\nQuote Date : 05-09-2026\nmore text\n[PAGE:1]\n');
+    return ok(m.quoteNo==='QT-1234'&&m.quoteDate==='05-09-2026',JSON.stringify(m));
+  });
+  T('Quote meta','missing data: returns nulls, does not guess',()=>{
+    const m=EQM('No date info here at all\n[PAGE:1]\n');
+    return ok(m.quoteNo===null&&m.quoteDate===null,JSON.stringify(m));
+  });
+  T('Quote meta','no validity/expiry assertion exists anywhere in validateItem output',()=>{
+    const it={designName:'X',windowType:'Fixed',profileMaterial:'uPVC',width:900,height:1200,glass:'5mm',mesh:'No',qty:1,rate:100,amount:100};
+    const checks=V(it,null).checks;
+    const hit=checks.find(c=>/expir|validity\s*period|this quote (is|has)\b/i.test(c.detail));
+    return ok(!hit,'unexpected validity-period assertion found: '+JSON.stringify(hit));
+  });
+
+  /* ══════════ 9. Scanned/image PDF detection (new) ══════════ */
+  T('Scanned PDF','flags very low text density as likely scanned',()=>ok(ISPDF(5)===true,''));
+  T('Scanned PDF','does not flag a normal text-dense page',()=>ok(ISPDF(500)===false,''));
+  T('Scanned PDF','boundary: exactly at threshold is NOT flagged (strict less-than)',()=>ok(ISPDF(40)===false,''));
+
+  /* ══════════ 10. Parse confidence visibility (new) ══════════ */
+  T('Parse confidence','PARSE_CONFIDENCE_LOW_THRESHOLD constant is defined and sane',()=>
+    ok(typeof PARSE_CONFIDENCE_LOW_THRESHOLD==='number'&&PARSE_CONFIDENCE_LOW_THRESHOLD>0&&PARSE_CONFIDENCE_LOW_THRESHOLD<100,
+      'value='+PARSE_CONFIDENCE_LOW_THRESHOLD));
+  T('Parse confidence','low-confidence item renders a chip-lowconf badge on its card',()=>{
+    const items=[Object.assign({},DEMO[0],{_conf:40})];
+    try{FIN(items[0]);}catch(e){}
+    LOADITEMS(items);
+    return ok(w.document.getElementById('cardsGrid').innerHTML.includes('chip-lowconf'),'badge not found in rendered card HTML');
+  });
+
+  /* ══════════ 11. Release hygiene (new) ══════════ */
+  T('Release hygiene','APP_VERSION is visibly rendered in the header badge',()=>{
+    const el=w.document.getElementById('verBadge');
+    return ok(el&&el.textContent==='v'+APP_VERSION,'badge='+(el&&el.textContent)+' APP_VERSION='+APP_VERSION);
+  });
+  T('Changelog','current CHANGELOG entry version matches APP_VERSION',()=>
+    ok(CHANGELOG&&CHANGELOG[0]&&CHANGELOG[0].version===APP_VERSION,
+      'CHANGELOG[0].version='+(CHANGELOG&&CHANGELOG[0]&&CHANGELOG[0].version)+' APP_VERSION='+APP_VERSION));
+  T('Changelog','current entry has a name and at least one change listed',()=>
+    ok(CHANGELOG&&CHANGELOG[0]&&!!CHANGELOG[0].name&&Array.isArray(CHANGELOG[0].changes)&&CHANGELOG[0].changes.length>0,
+      JSON.stringify(CHANGELOG&&CHANGELOG[0])));
+  T('Changelog','version badge opens the read-only changelog WITHOUT requiring the Settings login',()=>{
+    w.closeKB&&w.closeKB(); w.closeChangelog&&w.closeChangelog();
+    w.openChangelog();
+    const shown=w.document.getElementById('changelogBg').classList.contains('show');
+    const hasEntries=w.document.getElementById('changelogList').querySelectorAll('.kb-changelog-entry').length>0;
+    const loginNotShown=!w.document.getElementById('kbLoginBg').classList.contains('show');
+    w.closeChangelog();
+    return ok(shown&&hasEntries&&loginNotShown,`shown=${shown} hasEntries=${hasEntries} loginNotShown=${loginNotShown}`);
+  });
+  T('Changelog','Settings modal, once unlocked, opens directly to the What\'s New tab',()=>{
+    w.openKBUnlocked();
+    const activeTab=w.document.querySelector('.kb-tab.active')&&w.document.querySelector('.kb-tab.active').dataset.tab;
+    const hasEntries=w.document.getElementById('kbChangelogList').querySelectorAll('.kb-changelog-entry').length>0;
+    w.closeKB();
+    return ok(activeTab==='changelog'&&hasEntries,`activeTab=${activeTab} hasEntries=${hasEntries}`);
+  });
+
+  /* ══════════ 12. Regression: the real screenshot case from earlier in this project ══════════ */
+  T('REGRESSION (screenshot case)','2800x3500mm Aluminium fixed window: Mullion/coupler correctly FAILs against the corrected 2400mm height ceiling',()=>{
+    const it={designName:'fixed laminated',windowType:'Fixed',profileMaterial:'Aluminium',profileType:'Aluminium',
+      profileColor:'MILL FINISH',series:'REGAL SELECT - 45MM CASEMENT WINDOW SERIES',width:2800,height:3500,weight:157.038,
+      glass:'(1) AIS Stronglas- 6MM ECO SENSE ENHANCE SPRING PLUS TG',qty:2,rate:73759,amount:147518};
+    const checks=V(it,null).checks;
+    const mullion=findCat(checks,'Mullion / coupler');
+    const hardware=findCat(checks,'Hardware / locking');
+    return ok(mullion&&mullion.status==='fail'&&hardware===undefined,
+      JSON.stringify({mullion,hardware}));
+  });
+  T('REGRESSION (catalog data)','Regal Select Fixed Window catalog row: 350-3600mm(w) x 350-2400mm(h), maxWt 250kg',()=>{
+    const row=[].concat(ALUM_SLIDING||[],ALUM_CASEMENT||[],ALUM_VENTILATION||[]).find(c=>c.key==='regalSelect_fix');
+    if(!row)return ok(false,'regalSelect_fix row not found in any ALUM_* array');
+    const r=RNG(row.w), h=RNG(row.h);
+    return ok(r&&r.min===350&&r.max===3600&&h&&h.min===350&&h.max===2400&&row.maxWt===250,JSON.stringify(row));
+  });
+  T('REGRESSION (full demo set)','loading the bundled demo produces exactly the one pre-existing legitimate fail (SLIDE AND FOLD, missing lock), nothing new',()=>{
+    LOADDEMO();
+    const failing=S.items.filter(i=>i._qa.status==='fail').map(i=>i.slNo);
+    return ok(failing.length===1&&failing[0]===9,'failing slNos='+JSON.stringify(failing));
+  });
+  T('REGRESSION (full demo set)','no item anywhere in the demo set gets a Colour-consistency FAIL (silicon-vs-frame false-fail guard)',()=>{
+    const anyFail=S.items.some(it=>it._qa.checks.some(c=>c.cat==='Colour consistency'&&c.status==='fail'));
+    return ok(!anyFail,'a Colour consistency FAIL was found on real demo data');
+  });
+}
+</script>
+</body>
+</html>
